@@ -41,6 +41,11 @@ function conifer(seed) {
   }
   g.setAttribute('color', new THREE.BufferAttribute(cols, 3));
 
+  // local height ratio, used by the wind shader
+  const hAttr = new Float32Array(p3.count);
+  for (let i = 0; i < p3.count; i++) hAttr[i] = Math.min(1, Math.max(0, p3.getY(i) / h));
+  g.setAttribute('aH', new THREE.BufferAttribute(hAttr, 1));
+
   g.rotateY(rnd() * TAU);
   return g;
 }

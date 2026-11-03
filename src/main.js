@@ -103,6 +103,26 @@ const app = {
 
 async function build() {
   M = createMaterials();
+
+  // wind sway for foliage: vertex-shader injection, weighted by local height
+  const fol = M.foliage;
+  fol.onBeforeCompile = (shader) => {
+    shader.uniforms.uWind = { value: 0 };
+    shader.vertexShader = 'uniform float uWind;\nattribute float aH;\n' + shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      [
+        '#include <begin_vertex>',
+        'float wph = dot(position.xz, vec2(0.09, 0.06));',
+        'float wsw = sin(uWind * 1.35 + wph) * 0.55 + sin(uWind * 2.15 + wph * 1.6) * 0.28;',
+        'float wamp = aH * aH * 0.42;',
+        'transformed.x += wsw * wamp;',
+        'transformed.z += cos(uWind * 1.05 + wph) * wamp * 0.6;',
+      ].join('\n'),
+    );
+    fol.userData.shader = shader;
+  };
+  fol.needsUpdate = true;
   hud.setLoad(0.2, 'TEXTURING METAL');
   await nextFrame();
 
@@ -387,6 +407,7 @@ function frame() {
   if (lava) lava.update(dt, elapsed);
   if (world.props && world.props.update) world.props.update(dt, elapsed);
   if (world.dust) world.dust.update(dt, elapsed, camera);
+  if (M && M.foliage.userData.shader) M.foliage.userData.shader.uniforms.uWind.value = elapsed;
   if (post) post.grade.uniforms.uTime.value = elapsed;
 
   if (cinema) cinema.update(dt);
