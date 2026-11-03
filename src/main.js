@@ -8,6 +8,7 @@ import { createHarvester } from './world/harvester.js';
 import { createProps } from './world/props.js';
 import { createFlora } from './world/flora.js';
 import { createDecals } from './world/decals.js';
+import { createDust } from './world/dust.js';
 import { createLavaWell } from './world/lava.js';
 import { createPost } from './lib/post.js';
 import { createCinema } from './cinema.js';
@@ -124,6 +125,7 @@ async function build() {
   await nextFrame();
 
   createDecals(M, scene);
+  world.dust = createDust(scene);
   createFlora(M, scene);
   world.props = createProps(M, scene);
   hud.setLoad(0.88, 'IGNITING THE WELL');
@@ -384,6 +386,7 @@ function frame() {
   if (harvester) harvester.update(dt, elapsed);
   if (lava) lava.update(dt, elapsed);
   if (world.props && world.props.update) world.props.update(dt, elapsed);
+  if (world.dust) world.dust.update(dt, elapsed, camera);
   if (post) post.grade.uniforms.uTime.value = elapsed;
 
   if (cinema) cinema.update(dt);
