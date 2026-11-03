@@ -14,8 +14,6 @@ walk and free-fly modes.
 **Status** — v0.0.1, playable vertical slice. Modelling detail and atmosphere work continue.
 **Not** — a game, a plugin, or a pre-rendered film. One HTML file that opens by double-click.
 
-A real-time, single-scene study of a **Hammond Robotics Harvester**: a 220 m armoured tower with four splayed legs, a molten core, a 1.6 km energy beam, and a saucer station built over an open lava shaft — sitting in a forested volcanic rift.
-
 Built with Three.js and hand-written shaders. No external assets: every texture, tree, rock and decal is generated procedurally at load.
 
 ![01 ARRIVAL](docs/shots/01-arrival.png)
