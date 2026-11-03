@@ -1,91 +1,100 @@
-# HARVESTER — World's Edge 巨构场景 / 实时漫游 + 6 镜电影模式
+# HARVESTER — Apex-style Megastructure
 
-Apex Legends 风格的单场景实时演示：Hammond Robotics 收割机（Harvester）坐落在裂谷盆地中央，
-四臂外张的白色装甲塔身、中心熔岩核心、冲天能量束，周围是玄武岩台地、苔藓盆地、熔岩竖井，
-塔基是碟形停靠平台与白色蓝条移动基地舱。
+A real-time, single-scene study of a **Hammond Robotics Harvester**: a 220 m armoured tower with four splayed legs, a molten core, a 1.6 km energy beam, and a saucer station built over an open lava shaft — sitting in a forested volcanic rift.
 
-## 打开方式
+Built with Three.js and hand-written shaders. No external assets: every texture, tree, rock and decal is generated procedurally at load.
 
-- **双击 `HARVESTER-PV.html`** —— 单文件、离线、无需服务器。
-- 或开发模式：`npm install && npm run build && npm run serve` → http://localhost:5173
+![01 ARRIVAL](docs/shots/01-arrival.png)
 
+> Real-time stylised environment, not pre-rendered CG. 1600×900 · 60–120 fps · ~2.9 M triangles.
 
+---
 
-## 画面
+## Open it
+
+Double-click **`HARVESTER-PV.html`** — single file, fully offline, no server required.
+
+Development:
+
+```bash
+npm install
+npm run build      # esbuild bundle -> dist/app.js
+npm run serve      # http://localhost:5199
+npm run shot       # headless screenshot
+npm run pack       # inline everything into HARVESTER-PV.html
+```
+
+## Controls
+
+| Key | Action |
+|---|---|
+| `Space` | Play / pause the film |
+| `1`–`6` | Jump to a shot |
+| `←` `→` | Previous / next shot |
+| `E` | Explore (orbit) |
+| `V` | First-person walk |
+| `F` | Free fly |
+| `C` / `Q` | Descend (fly mode) |
+| `D` | Toggle depth of field |
+| `H` | Hide HUD |
+| `Esc` | Release pointer |
+
+The time slider walks the palette from afternoon through golden hour, dusk and night.
+
+## Shots
 
 | | |
 |---|---|
-| ![01 ARRIVAL](docs/shots/01-arrival.png) | ![02 THE TOWER](docs/shots/02-tower.png) |
-| ![03 THE DECK](docs/shots/03-deck.png) | ![05 THE ARM](docs/shots/05-arm.png) |
-| ![06 HARVEST](docs/shots/06-harvest.png) | ![contact sheet](docs/shots/contact-sheet.png) |
+| ![01](docs/shots/01-arrival.png) | ![02](docs/shots/02-tower.png) |
+| ![03](docs/shots/03-deck.png) | ![05](docs/shots/05-arm.png) |
+| ![06](docs/shots/06-harvest.png) | ![board](docs/shots/contact-sheet.png) |
 
-细节：井内检修栈道 ![well](docs/shots/detail-well.png) · 贴花层 ![decals](docs/shots/detail-decals.png)
+Details: [well catwalks](docs/shots/detail-well.png) · [decals](docs/shots/detail-decals.png)
 
-## 操作
+## What is in the scene
 
-| 键 | 作用 |
-|---|---|
-| 空格 | 播放 / 暂停电影 |
-| 1–6 | 跳转镜头 |
-| ← → | 上一镜 / 下一镜 |
-| E | 探索模式（轨道） |
-| V | 第一人称步行 |
-| F | 自由飞行 |
-| H | 隐藏 HUD（干净画面） |
-| 鼠标 | 拖动环视 / 锁定后转视角（ roam 模式） |
-| Esc | 释放鼠标 |
+- **Tower** — 8-sided armoured column, four arms with a second outer skin and seam brackets, wide crown, rust truss cage, 8.4 m molten core, 1 600 m additive energy beam. 220 m tall, 184 m span.
+- **Station** — 82 m lathe-turned saucer, blue hull band, lower catwalk ring, yellow pipe runs with capped ends, 2 maintenance rings inside the shaft, 14 practical lights.
+- **Terrain** — 2.6 km heightfield (420²) with a two-stage foothill-to-ridge profile, a noise-warped moss belt, and 34 chunked basalt butte clusters.
+- **Flora** — 330 forest patches (~7 000 conifers) with baked vertical colour gradients, split into 200 m cells for frustum culling; 420 boulders.
+- **Decals** — stencilled hull codes, hazard triangles, rust runs and scorch marks.
 
-时间滑块可切换 午后 → 黄金时刻 → 黄昏 → 夜晚。
+## Technical notes
 
-## 场景构成
+1. **Custom loft winding.** Hand-built loft geometry with reversed triangle order gets back-face culled and the armour silently disappears. `lib/loft.js` computes signed volume and flips when needed.
+2. **Post order matters.** ACES belongs in `OutputPass`; grading must happen after the sRGB encode. Putting ACES inside the grade pass crushes the whole frame.
+3. **Full-arc annuli.** Two `absarc` calls that share endpoints collapse into a solid disc after earcut — full rings must be built with `shape.holes`.
+4. **Open-ended cylinders are single-sided.** They vanish from inside; anything seen from both sides needs real thickness.
+5. **Shadows need a frustum that covers the subject** — a 220 m tower with a ±190 m shadow camera leaves the top unshadowed.
+6. **Metalness is not decoration.** A `metalness: 0.9` surface with nothing to reflect renders black. Backlit steel needs albedo and lower metalness, not more lights.
 
-- **塔身**：中央八棱柱装甲柱（19 m 半径，102 m 高）+ 四条外张巨臂（16 m → 92 m 半径，
-  30–46 m 宽）+ 顶部宽平冠盘（58 m 半径）+ 锈色桁架笼 + 熔岩核心（半径 8.4 m）
-  + 能量束（1600 m，加法混合着色器）。总高约 220 m，臂展 184 m。
-- **碟形平台**：半径 82 m 的 Lathe 车削碟体，含裙边蓝带、下层环廊、黄色管束、
-  12 盏甲板泛光灯、中央熔岩竖井（半径 36 m，深 52 m）。
-- **地形**：2.6 km 高度场地形（420×420 段），程序化 ridged noise 生成裂谷、
-  二阶崖壁、远山；玄武岩台地用整体 butte 几何（非碎片堆叠）。
-- **道具**：3 个停靠舱（46 m / 26 m / 22 m）、红色信标球、货柜、管线、护栏。
-- **大气**：自定义天空着色器（三层渐变 + 云 + 火山烟柱 + 星点）+ PMREM 环境反射，
-  指数雾、加法能量束、熔岩点光。
+## Known gaps
 
-## 技术要点（踩过的坑）
+- Armour plating is still simpler than the reference — no rivet rows or layered panel stacks on the crown.
+- The dry soil ring outside the moss belt still borrows the grass texture and reads too bright.
+- No TAA, no planar reflections, no volumetric light yet.
+- Trees are stacked-cone impostors: fine at mid distance, readable as geometry within ~5 m.
 
-1. **Loft 绕序**：自定义放样几何的三角形绕序反了会导致 PBR 材质被背面剔除 → 整片装甲"消失"。
-   `loft.js` 里用有向体积自动判定并翻转。
-2. **后期链顺序**：ACES 必须交给 `OutputPass`（配 `renderer.toneMapping`），
-   调色放在 sRGB 之后；把 ACES 写进调色 pass 会把整幅压暗成灰。
-3. **阴影相机**必须覆盖 220 m 塔身（±300 / top 340 / far 1500），否则塔顶不投影。
-4. **山体不能用大量细长碎片**堆叠——会变成"柴火堆"；改用带竖棱和层理的整块 butte。
-5. **峡谷开口**必须与相机方位角对齐（`RIFT_A`），并让太阳从这个开口照进盆地，
-   否则盆地永远处在崖壁阴影里。
-
-## 文件
+## Layout
 
 ```
-index.html / style.css      开发页与 HUD
-HARVESTER-PV.html           单文件成品（双击即开）
-src/main.js                 渲染器、灯光、时间、漫游、debug 钩子
-src/cinema.js               6 镜数据与状态机
-src/hud.js                  电影/探索 HUD
-src/lib/loft.js             放样几何（自动修正绕序）
-src/lib/post.js             GTAO → DOF → Bloom → Output(ACES) → Grade → SMAA
-src/lib/materials.js        材质库
-src/lib/textures.js         程序化贴图（面板、岩石、地面、地面贴图）
-src/world/harvester.js      收割机塔身
-src/world/ring.js           碟形平台
-src/world/terrain.js        高度场 + 玄武岩台地
-src/world/props.js          停靠舱与地面道具
-src/world/lava.js           熔岩着色器 + 竖井
-src/world/sky.js            天空着色器与时间停止点
-tools/shot.mjs              Puppeteer 截图
-tools/pack.mjs              单文件打包
+index.html / style.css        dev page + HUD
+HARVESTER-PV.html             single-file build
+src/main.js                   renderer, lights, time-of-day, roam, debug hooks
+src/cinema.js                 six-shot data + state machine
+src/hud.js                    film / explore HUD
+src/lib/loft.js               lofting with automatic winding fix
+src/lib/post.js               Bloom → Output(ACES) → Grade → SMAA
+src/lib/materials.js          material library
+src/lib/textures.js           procedural canvas textures
+src/world/harvester.js        the tower
+src/world/ring.js             saucer station + shaft catwalks
+src/world/terrain.js          heightfield, buttes, moss belt
+src/world/flora.js            forest + boulders
+src/world/props.js            field modules, containers, beacon
+src/world/decals.js           stencils, hazard plates, rust
+src/world/lava.js             lava shader + shaft
+src/world/sky.js              sky shader + time stops
+tool/shot.mjs                 puppeteer capture
+tools/pack.mjs                single-file packer
 ```
-
-## 已知不足（诚实说明）
-
-- 这是**实时风格化场景**，不是预渲染 CG；细节密度低于 Apex 官方原画。
-- 塔身巨臂的截面仍偏"板"状，缺少原图那种多层装甲板叠加与铆钉细节。
-- 岩壁贴图在远距离重复感明显，缺少近距离岩石细节资产。
-- 角色、粒子特效（尘土/热浪）与音效尚未加入。
