@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>THE HARVESTER — Apex-Style Environment Demo</title>
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body class="boot">
+  <canvas id="gl"></canvas>
+
+  <!-- ===== HUD ===== -->
+  <div id="hud">
+    <div class="hud-tl">
+      <div class="brand"><span class="brand-mark">H</span><span class="brand-txt">HAMMOND<em>ROBOTICS</em></span></div>
+      <div class="site">SITE 03 / THE HARVESTER</div>
+    </div>
+    <div class="hud-tr">
+      <button class="icon-btn" id="btnClean" title="Clean view (H)">◻</button>
+      <button class="icon-btn" id="btnSound" title="Sound (M)">♪</button>
+    </div>
+
+    <div class="letterbox top"></div>
+    <div class="letterbox bot"></div>
+
+    <div class="hud-bl">
+      <div class="shotnum"><span id="shotNum">01</span><i>/06</i></div>
+      <div class="shotlabel" id="shotLabel">ARRIVAL</div>
+      <div class="progress"><div class="bar" id="shotBar"></div></div>
+    </div>
+    <div class="hud-br">
+      <div class="tc" id="timecode">00:00:00:00</div>
+      <div class="fps" id="fps">-- FPS</div>
+    </div>
+
+    <div class="controls">
+      <button class="tab active" id="tabCinema">CINEMA</button>
+      <button class="tab" id="tabExplore">EXPLORE</button>
+      <div class="sep"></div>
+      <button class="icon-btn play" id="btnPlay" title="Play / pause (Space)">❚❚</button>
+      <div class="dots" id="dots"></div>
+      <div class="sep"></div>
+      <div class="slider-wrap"><label>TIME</label><input id="timeSlider" type="range" min="0" max="1000" value="620" /></div>
+      <div class="sep"></div>
+      <div class="slider-wrap"><label>FOV</label><input id="fovSlider" type="range" min="28" max="80" value="46" /></div>
+      <button class="icon-btn" id="btnQuality" title="Quality">HQ</button>
+    </div>
+
+    <div class="hint" id="hint">DRAG TO ORBIT · SCROLL TO ZOOM · SPACE PLAY · 1–6 SHOTS · E EXPLORE · H CLEAN</div>
+    <div class="center-prompt" id="centerPrompt"><b>CLICK TO LOOK</b><span>WASD MOVE · SHIFT RUN · SPACE JUMP · ESC RELEASE</span></div>
+
+    <div class="title-card" id="titleCard">
+      <div class="tc-brand">HAMMOND ROBOTICS</div>
+      <h1>THE HARVESTER</h1>
+      <div class="tc-sub">SITE 03 · 收割机 · REAL-TIME ENVIRONMENT</div>
+      <div class="tc-rule"></div>
+      <div class="tc-note">A stylized real-time scene study — not pre-rendered CG</div>
+    </div>
+
+    <div class="end-card" id="endCard">
+      <div class="ec-brand">HAMMOND ROBOTICS</div>
+      <h2>THE HARVESTER</h2>
+      <p>One site. Six shots. Free roam.</p>
+      <div class="ec-btns">
+        <button id="btnReplay">REPLAY FILM</button>
+        <button id="btnFree">FREE ROAM</button>
+      </div>
+    </div>
+
+    <div class="modes">
+      <button id="modeOrbit">ORBIT</button>
+      <button id="modeWalk">WALK</button>
+      <button id="modeFly">FLY</button>
+    </div>
+
+    <div class="crosshair" id="crosshair"></div>
+  </div>
+
+  <div class="loader" id="loader">
+    <div class="ld-mark">H</div>
+    <div class="ld-title">THE HARVESTER</div>
+    <div class="ld-bar"><div id="ldFill"></div></div>
+    <div class="ld-step" id="ldStep">COMPILING SHADERS</div>
+  </div>
+
+  <script>
+    window.addEventListener('error', (e) => console.error('WINDOW-ERROR', e.message, '@', e.filename + ':' + e.lineno, e.error && e.error.stack));
+    window.addEventListener('unhandledrejection', (e) => console.error('UNHANDLED', e.reason && (e.reason.stack || JSON.stringify(e.reason))));
+  </script>
+  <script type="module" src="./dist/app.js"></script>
+</body>
+</html>

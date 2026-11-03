@@ -1,0 +1,11 @@
+p = 'src/world/sky.js'
+s = open(p, encoding='utf-8').read()
+s = s.replace('sunAz: -0.34', 'sunAz: -1.86').replace('sunAz: -0.32', 'sunAz: -1.84')
+s = s.replace('sunAz: -0.30', 'sunAz: -1.82').replace('sunAz: -0.28', 'sunAz: -1.80')
+s = s.replace('sunAz: -0.26', 'sunAz: -1.78')
+s = s.replace("sunPower: 1.35, cover: 0.56", "sunPower: 0.95, cover: 0.56")
+s = s.replace("sunPower: 1.5, cover: 0.42", "sunPower: 1.05, cover: 0.42")
+s = s.replace("sunEl: 0.30, sunAz: -1.84", "sunEl: 0.40, sunAz: -1.84")
+s = s.replace("sunEl: 0.34, sunAz: -1.86", "sunEl: 0.46, sunAz: -1.86")
+open(p, 'w', encoding='utf-8').write(s)
+print('sun moved')
