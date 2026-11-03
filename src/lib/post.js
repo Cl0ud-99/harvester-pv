@@ -106,7 +106,7 @@ const HeatHazeShader = {
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
-    uStrength: { value: 0.0016 },
+    uStrength: { value: 0.00112 },
     uCenter: { value: new THREE.Vector2(0.5, 0.55) },
   },
   vertexShader: /* glsl */`
@@ -131,7 +131,7 @@ const HeatHazeShader = {
     void main(){
       vec2 uv = vUv;
       float d = distance(uv, uCenter);
-      float mask = smoothstep(0.55, 0.06, d);
+      float mask = smoothstep(0.385, 0.042, d);
 
       float a = n2(vec2(uv.x * 22.0, uv.y * 30.0 - uTime * 1.7));
       float b = n2(vec2(uv.x * 41.0 + 5.0, uv.y * 55.0 - uTime * 2.6));
