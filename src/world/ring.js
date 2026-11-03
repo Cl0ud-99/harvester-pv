@@ -369,18 +369,13 @@ export function createRing(M, scene) {
   A.add(mergeList(floods), 'emitOrange');
 
   /* under-saucer practicals so the deck edge is not a black void */
-  for (let i = 0; i < 8; i++) {
-    const a = (i / 8) * TAU + 0.2;
-    const L = new THREE.PointLight(0xffb066, 170, 130, 2.0);
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * TAU + 0.2;
+    const L = new THREE.PointLight(0xffb066, 340, 150, 2.0);
     L.position.set(Math.cos(a) * 60, -7.5, Math.sin(a) * 60);
     root.add(L);
   }
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * TAU;
-    const L = new THREE.PointLight(0xffd2a0, 110, 70, 2.0);
-    L.position.set(Math.cos(a) * 46, 3.6, Math.sin(a) * 46);
-    root.add(L);
-  }
+  // deck lamps removed: the lava bounce + shaft lights already cover this zone
 
   A.finish();
   scene.add(root);
