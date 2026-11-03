@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Assembler } from '../lib/assembler.js';
 import { chunk, tube, torus, mergeList, mulberry32, lerp, box } from '../lib/util.js';
-import { terrainH } from './terrain.js';
+import { terrainH, SET } from './terrain.js';
 
 const TAU = Math.PI * 2;
 
@@ -125,11 +125,17 @@ export function createProps(M, scene) {
   const gy = (x, z) => terrainH(x, z);
 
   /* --- the docked field modules --- */
+  const deckShift = SET.ringR - 82;
   const mods = [
     { x: 90, z: 44, ry: -2.24, len: 46, wid: 14, hgt: 11 },
     { x: 98, z: 14, ry: -2.05, len: 26, wid: 11, hgt: 9 },
     { x: -76, z: 74, ry: 0.85, len: 22, wid: 10, hgt: 8 },
   ];
+  for (const m of mods) {
+    const r = Math.hypot(m.x, m.z) || 1;
+    m.x += (m.x / r) * deckShift;
+    m.z += (m.z / r) * deckShift;
+  }
   for (const m of mods) {
     const hull = moduleHull(M, m.len, m.wid, m.hgt);
     hull.position.set(m.x, gy(m.x, m.z) + m.hgt / 2 + 1.9, m.z);
@@ -138,7 +144,9 @@ export function createProps(M, scene) {
   }
 
   /* --- red beacon sphere on a mast --- */
-  const bx = -46, bz = 128;
+  const beaconR = Math.hypot(-46, 128) || 1;
+  const bx = -46 + (-46 / beaconR) * deckShift;
+  const bz = 128 + (128 / beaconR) * deckShift;
   const mastH = 30;
   const mast = [];
   mast.push(tube(new THREE.Vector3(bx, gy(bx, bz) - 2, bz), new THREE.Vector3(bx, gy(bx, bz) + mastH, bz), 0.34, 0.18, 8));
@@ -190,7 +198,7 @@ export function createProps(M, scene) {
       }
     }
   };
-  groundProps(104, 150, 30);
+  groundProps(104 + deckShift, 150 + deckShift, 30);
   A.add(mergeList(cWhite), 'armour');
   A.add(mergeList(cBlue), 'armourBlue');
   A.add(mergeList(cRust), 'rust');
@@ -202,7 +210,7 @@ export function createProps(M, scene) {
   for (let i = 0; i < 26; i++) {
     const a0 = lerp(0.9, 3.9, i / 26);
     const a1 = lerp(0.9, 3.9, (i + 1) / 26);
-    const r = 116;
+    const r = 116 + deckShift;
     const p0 = new THREE.Vector3(Math.cos(a0) * r, gy(Math.cos(a0) * r, Math.sin(a0) * r) + 1.6, Math.sin(a0) * r);
     const p1 = new THREE.Vector3(Math.cos(a1) * r, gy(Math.cos(a1) * r, Math.sin(a1) * r) + 1.6, Math.sin(a1) * r);
     pipes.push(tube(p0, p1, 0.42, 0.42, 8));

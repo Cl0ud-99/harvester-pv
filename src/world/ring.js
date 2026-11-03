@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { SET } from './terrain.js';
 import { Assembler } from '../lib/assembler.js';
-import { chunk, tube, torus, mergeList, mulberry32, lerp } from '../lib/util.js';
+import { chunk, tube, mergeList, mulberry32, lerp } from '../lib/util.js';
 
 const TAU = Math.PI * 2;
 
@@ -14,7 +14,7 @@ function scaleUV(geo, s) {
 }
 
 /** Flat annular sector slab, facing +Y. */
-export function ringSector(rIn, rOut, h, a0, a1, seg = 96) {
+export function ringSector(rIn, rOut, h, a0, a1, seg = 96, bevel = 0.16, bevelSeg = 2) {
   const shape = new THREE.Shape();
   const full = Math.abs((a1 - a0) - Math.PI * 2) < 1e-4;
   if (full) {
@@ -29,8 +29,32 @@ export function ringSector(rIn, rOut, h, a0, a1, seg = 96) {
     shape.absarc(0, 0, rIn, a1, a0, true);
     shape.closePath();
   }
-  const g = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: true, bevelSize: 0.16, bevelThickness: 0.16, bevelSegments: 1, curveSegments: seg });
+  const bevelThickness = Math.min(Math.abs(bevel), h * 0.45);
+  const g = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: true, bevelSize: bevel, bevelThickness, bevelSegments: bevelSeg, curveSegments: seg });
   g.rotateX(-Math.PI / 2);
+  return g;
+}
+
+/** Narrow annular-sector strip laid on a sloped face. */
+function ringChamferBand(rOuter, yOuter, rInner, yInner, a0, a1, seg = 150) {
+  const pos = [], uv = [];
+  for (let i = 0; i <= seg; i++) {
+    const t = i / seg, a = a0 + (a1 - a0) * t;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    pos.push(ca * rOuter, yOuter, -sa * rOuter);
+    pos.push(ca * rInner, yInner, -sa * rInner);
+    uv.push(t, 0, t, 1);
+  }
+  const idx = [];
+  for (let i = 0; i < seg; i++) {
+    const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+    idx.push(a, b, c, b, d, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
   return g;
 }
 
@@ -174,28 +198,63 @@ export function createRing(M, scene) {
 
   /* ---------------- upper saucer overhang (covered corridor) ---------------- */
   const ARC0 = Math.PI * 0.16, ARC1 = Math.PI * 1.86;
-  const saucer = ringSector(P + 8, R + 1.5, 1.8, ARC0, ARC1, 150);
-  scaleUV(saucer, 0.15);
-  saucer.translate(0, SET.deck2Y, 0);
-  A.add(saucer, 'deck');
+  // second-level platform: double the old slab thickness and give the
+  // outer edge a real armour chamfer instead of a paper-thin plate
+  const saucerBevel = 3.0;
+  const saucerH = 3.1752; // 4.536 m minus 30%
+  const saucerOuterR = (R + 1.5) * 0.884; // 99.84 m max reach -15%
+  const saucer = ringSector(P + 8, saucerOuterR, saucerH, ARC0, ARC1, 150, saucerBevel, 1);
+  scaleUV(saucer, 0.06);
+  saucer.translate(0, SET.deck2Y - 1.8, 0);
+  A.add(saucer, 'deckUpper');
 
-  const saucerUnder = ringSector(P + 8.5, R + 1.0, 0.7, ARC0, ARC1, 150);
-  scaleUV(saucerUnder, 0.25);
-  saucerUnder.translate(0, SET.deck2Y - 0.7, 0);
-  A.add(saucerUnder, 'darkSteel');
+  // lit inner liner on the downward face so the underside is not a black void
+  const saucerBottomY = SET.deck2Y - 1.8 - Math.min(saucerBevel, saucerH * 0.45);
+  const underPlate = ringSector(P + 9, saucerOuterR - 1.2, 0.18, ARC0, ARC1, 150, 0.04);
+  scaleUV(underPlate, 0.06);
+  underPlate.translate(0, saucerBottomY - 1.2, 0);
+  A.add(underPlate, 'deckUnder');
 
-  // outer fascia of the overhang with a blue band + glass
-  const fascia = new THREE.CylinderGeometry(R + 1.6, R + 1.6, 2.4, 150, 1, true, ARC0, ARC1 - ARC0);
-  fascia.translate(0, SET.deck2Y + 0.9, 0);
-  // A.add(fascia, 'armour');  // removed
+  // one yellow concentric paint ring, centred on the second-level platform
+  const saucerTopY = SET.deck2Y - 1.8 + saucerH + Math.min(saucerBevel, saucerH * 0.45) + 0.03;
 
-  const fasciaBlue = new THREE.CylinderGeometry(R + 1.75, R + 1.75, 0.75, 150, 1, true, ARC0, ARC1 - ARC0);
-  fasciaBlue.translate(0, SET.deck2Y - 0.35, 0);
-  // A.add(fasciaBlue, 'armourBlue');  // removed
+  // raised armour plates with recessed seams; real relief instead of a flat decal
+  const panelBands = [57.5, 64.8, 72.1, 79.4, 84.0];
+  const panelSegs = 28;
+  const panelGeos = [];
+  for (let b = 0; b < panelBands.length - 1; b++) {
+    for (let j = 0; j < panelSegs; j++) {
+      const a0 = lerp(ARC0, ARC1, j / panelSegs);
+      const a1 = lerp(ARC0, ARC1, (j + 1) / panelSegs);
+      const ph = 0.12 + rnd() * 0.07;
+      const g = ringSector(
+        panelBands[b] + 0.18, panelBands[b + 1] - 0.18,
+        ph, a0 + 0.004, a1 - 0.004, 8, 0.025,
+      );
+      scaleUV(g, 0.06);
+      g.translate(0, saucerTopY + 0.01, 0);
+      panelGeos.push(g);
+    }
+  }
+  A.add(mergeList(panelGeos), 'deckUpper');
 
-  const fasciaGlass = new THREE.CylinderGeometry(R + 1.7, R + 1.7, 0.9, 150, 1, true, ARC0, ARC1 - ARC0);
-  fasciaGlass.translate(0, SET.deck2Y + 1.55, 0);
-  // A.add(fasciaGlass, 'glass');  // removed
+  // align the yellow ring with the central concentric panel seam
+  const saucerMidR = panelBands[2];
+  const saucerRing = ringSector(saucerMidR - 0.16, saucerMidR + 0.16, 0.04, ARC0, ARC1, 150, 0.025);
+  saucerRing.translate(0, saucerTopY + 0.03, 0);
+  A.add(saucerRing, 'paint');
+
+  // second yellow line centred on the sloped upper chamfer face
+  const chamferInnerR = saucerOuterR - saucerBevel;
+  const chamferOuterR = saucerOuterR;
+  const slopeMidR = lerp(chamferInnerR, chamferOuterR, 0.5);
+  const slopeMidY = lerp(saucerTopY - 0.03, saucerTopY - saucerBevel + 0.03, 0.5);
+  const chamferRing = ringChamferBand(
+    slopeMidR + 0.15, slopeMidY - 0.035,
+    slopeMidR - 0.15, slopeMidY + 0.035,
+    ARC0, ARC1, 150,
+  );
+  A.add(chamferRing, 'paint');
 
   // soffit lamps under the overhang
   const lamps = [];
@@ -215,8 +274,8 @@ export function createRing(M, scene) {
     const a = lerp(ARC0 + 0.16, ARC1 - 0.16, i / (COLN - 1));
     const r = P + 12;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    const c = new THREE.CylinderGeometry(1.25, 1.65, SET.deck2Y, 10, 3);
-    c.translate(x, SET.deck2Y / 2, z);
+    const c = new THREE.CylinderGeometry(1.25, 1.65, SET.deck2Y + 5.0, 10, 3);
+    c.translate(x, (SET.deck2Y - 5.0) / 2, z);
     cols.push(c);
     for (const t of [0.25, 0.75]) {
       const ring = new THREE.CylinderGeometry(1.6, 1.6, 0.6, 10, 1, true);
@@ -286,19 +345,20 @@ export function createRing(M, scene) {
   /* ---------------- gantry arms reaching out from the deck ---------------- */
   const arms = [], armTrim = [], armHazard = [];
   const ARM = [0.55, 2.35, 3.95, 5.6];
+  const gantryShift = R - 82;   // keep gantries outside the expanded deck edge
   for (const a of ARM) {
     const x = Math.cos(a), z = Math.sin(a);
     const yaw = Math.atan2(x, z);
     for (let k = 0; k < 3; k++) {
-      const r0 = 64 + k * 11;
+      const r0 = 64 + k * 11 + gantryShift;
       const g = chunk(9.0, 1.4, 11.0, x * (r0 + 5), -0.4, z * (r0 + 5), yaw);
       arms.push(g);
       const post = chunk(1.2, 9.0, 1.2, x * (r0 + 8), 4.2, z * (r0 + 8), yaw);
       armTrim.push(post);
     }
-    const rail = chunk(30, 0.14, 0.14, x * 78, 5.4, z * 78, yaw);
+    const rail = chunk(30, 0.14, 0.14, x * (78 + gantryShift), 5.4, z * (78 + gantryShift), yaw);
     armTrim.push(rail);
-    armHazard.push(chunk(8.4, 0.12, 1.2, x * 66, 0.32, z * 66, yaw));
+    armHazard.push(chunk(8.4, 0.12, 1.2, x * (66 + gantryShift), 0.32, z * (66 + gantryShift), yaw));
   }
   A.add(mergeList(arms), 'deck');
   A.add(mergeList(armTrim), 'steel');

@@ -283,6 +283,162 @@ export function groundSet(o = {}) {
 }
 
 /* ------------------------------------------------------------------ *
+ *  DECK METAL — large brushed plates for the main deck, not concrete
+ * ------------------------------------------------------------------ */
+export function deckMetalSet(o = {}) {
+  const fineMode = !!o.fine;
+  const key = 'deckMetal' + (o.seed || 0) + (fineMode ? 'F' : '');
+  if (cache.has(key)) return cache.get(key);
+  const size = o.size || 1024;
+  const rnd = mulberry32(91);
+  const cv = canvas(size);
+  const g = cv.getContext('2d');
+  g.fillStyle = '#45494c'; g.fillRect(0, 0, size, size);
+
+  const img = g.getImageData(0, 0, size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = x / size, v = y / size;
+      // long horizontal brushed grain + a very low-frequency mottle
+      const brushed = fbm2(u * (fineMode ? 150.0 : 58.0) + 6.0, v * (fineMode ? 5.0 : 2.4), 3) * 0.5 + 0.5;
+      const fine = fbm2(u * (fineMode ? 320.0 : 170.0) - 3.0, v * (fineMode ? 16.0 : 9.0), 2) * 0.5 + 0.5;
+      const macro = fbm2(u * 2.1 + 9.0, v * 2.1 - 4.0, 3) * 0.5 + 0.5;
+      const tone = (fineMode ? 0.90 : 0.82) + brushed * (fineMode ? 0.06 : 0.10) + fine * (fineMode ? 0.02 : 0.015) + macro * 0.04;
+      const i = (y * size + x) * 4;
+      img.data[i] = clamp((fineMode ? 0.34 : 0.30) * 255 * tone, 0, 255);
+      img.data[i + 1] = clamp((fineMode ? 0.36 : 0.32) * 255 * tone, 0, 255);
+      img.data[i + 2] = clamp((fineMode ? 0.38 : 0.34) * 255 * tone, 0, 255);
+      img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+
+  // plates: 2x2 on the main deck; a finer, lower-contrast 4x4 on the upper deck
+  const seam = (x0, y0, x1, y1, a = 1) => {
+    g.strokeStyle = `rgba(24,26,28,${0.72 * a})`; g.lineWidth = fineMode ? 4.4 : 5;
+    g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+    g.strokeStyle = `rgba(180,190,196,${0.16 * a})`; g.lineWidth = fineMode ? 1.6 : 1.3;
+    g.beginPath(); g.moveTo(x0 + 2, y0); g.lineTo(x1 + 2, y1); g.stroke();
+  };
+  const cells = fineMode ? 4 : 2;
+  for (let i = 0; i <= cells; i++) {
+    const p = (i / cells) * size;
+    seam(0, p, size, p, fineMode ? 0.55 : 1);
+    seam(p, 0, p, size, fineMode ? 0.55 : 1);
+  }
+
+  // sparse fasteners at plate corners
+  const rivet = (x, y, rr) => {
+    g.fillStyle = 'rgba(30,32,34,0.55)'; g.beginPath(); g.arc(x, y, rr, 0, 6.283); g.fill();
+    g.fillStyle = 'rgba(190,196,200,0.20)'; g.beginPath(); g.arc(x - rr * 0.3, y - rr * 0.3, rr * 0.4, 0, 6.283); g.fill();
+  };
+  if (!fineMode) {
+    for (const [sx, sy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+      for (let k = 0; k < 3; k++) rivet(sx * size + (sx ? -14 : 14) + (k - 1) * 9, sy * size + (sy ? -14 : 14), 2.2);
+    }
+  } else {
+    for (let i = 1; i < 4; i++) for (let j = 1; j < 4; j++) rivet((i / 4) * size, (j / 4) * size, 1.2);
+  }
+  // occasional long polish scratch, never a dense speckle field
+  for (let i = 0; i < 90; i++) {
+    const x = rnd() * size, y = rnd() * size, len = 12 + rnd() * 90;
+    g.strokeStyle = `rgba(210,216,220,${0.04 + rnd() * 0.08})`;
+    g.lineWidth = 0.5 + rnd() * 0.8;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + len, y + (rnd() - 0.5) * 5); g.stroke();
+  }
+
+  // roughness: brushed zones are smoother; seams/edges are rougher
+  const rc = canvas(size);
+  const r2 = rc.getContext('2d');
+  r2.fillStyle = '#b8b8b8'; r2.fillRect(0, 0, size, size);
+  for (let i = 0; i < 160; i++) {
+    const y = rnd() * size, h = 1 + rnd() * 3;
+    r2.fillStyle = `rgba(130,130,130,${0.08 + rnd() * 0.12})`;
+    r2.fillRect(0, y, size, h);
+  }
+  const rcells = fineMode ? 4 : 2;
+  for (let i = 0; i <= rcells; i++) {
+    const p = (i / rcells) * size;
+    r2.fillStyle = `rgba(70,70,70,${fineMode ? 0.28 : 0.45})`;
+    r2.fillRect(p, 0, fineMode ? 4 : 5, size);
+    r2.fillRect(0, p, size, fineMode ? 4 : 5);
+  }
+
+  const hc = canvas(size); hc.getContext('2d').drawImage(cv, 0, 0);
+  const out = {
+    map: tex(cv, { srgb: true, repeat: [1, 1], aniso: 16 }),
+    normalMap: tex(normalFromCanvas(hc, 0.55), { srgb: false, repeat: [1, 1], aniso: 16 }),
+    roughnessMap: tex(rc, { srgb: false, repeat: [1, 1], aniso: 16 }),
+  };
+  cache.set(key, out);
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ *  DRY SOIL — the ring outside the moss belt: ochre dirt, gravel, cracks
+ * ------------------------------------------------------------------ */
+export function dryGroundSet(o = {}) {
+  const key = 'dryGround' + (o.seed || 0);
+  if (cache.has(key)) return cache.get(key);
+  const size = o.size || 1024;
+  const rnd = mulberry32(73);
+  const cv = canvas(size);
+  const g = cv.getContext('2d');
+  g.fillStyle = '#6d5943';
+  g.fillRect(0, 0, size, size);
+
+  const img = g.getImageData(0, 0, size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = x / size, v = y / size;
+      const n = fbm2(u * 5.0 + 4, v * 5.0 - 2, 5) * 0.5 + 0.5;
+      const m = fbm2(u * 19 + 13, v * 19 + 7, 4) * 0.5 + 0.5;
+      const macro = fbm2(u * 1.6 - 11, v * 1.6 + 5, 3) * 0.5 + 0.5;
+      const pale = clamp((n - 0.46) * 2.3, 0, 1);
+      const dust = [lerp(108, 166, m) * (0.82 + macro * 0.26), lerp(88, 136, m) * (0.8 + macro * 0.24), lerp(64, 98, m) * (0.8 + macro * 0.22)];
+      const clay = [lerp(94, 128, m) * (0.8 + macro * 0.2), lerp(62, 82, m) * (0.8 + macro * 0.18), lerp(44, 58, m) * (0.8 + macro * 0.16)];
+      const i = (y * size + x) * 4;
+      img.data[i] = lerp(clay[0], dust[0], pale);
+      img.data[i + 1] = lerp(clay[1], dust[1], pale);
+      img.data[i + 2] = lerp(clay[2], dust[2], pale);
+      img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+
+  // gravel and dry pebbles
+  for (let i = 0; i < 9000; i++) {
+    const x = rnd() * size, y = rnd() * size, r = 0.5 + rnd() * 2.1;
+    g.fillStyle = rnd() > 0.45
+      ? `rgba(190,174,145,${0.07 + rnd() * 0.14})`
+      : `rgba(52,40,29,${0.06 + rnd() * 0.13})`;
+    g.beginPath(); g.arc(x, y, r, 0, 6.283); g.fill();
+  }
+  // baked mud cracks
+  for (let i = 0; i < 36; i++) {
+    let x = rnd() * size, y = rnd() * size;
+    g.strokeStyle = `rgba(42,31,22,${0.16 + rnd() * 0.24})`;
+    g.lineWidth = 0.7 + rnd() * 1.5;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 9; k++) { x += (rnd() - 0.5) * 26; y += rnd() * 22 - 6; g.lineTo(x, y); }
+    g.stroke();
+  }
+  // fine pale dust streaks
+  for (let i = 0; i < 1500; i++) {
+    const x = rnd() * size, y = rnd() * size;
+    g.strokeStyle = `rgba(196,174,142,${0.05 + rnd() * 0.12})`;
+    g.lineWidth = 0.6 + rnd();
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 8, y + (rnd() - 0.5) * 3); g.stroke();
+  }
+
+  const out = {
+    map: tex(cv, { srgb: true, repeat: o.repeat || [52, 52], aniso: 16 }),
+  };
+  cache.set(key, out);
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
  *  ROCK — stratified volcanic basalt
  * ------------------------------------------------------------------ */
 export function rockSet(o = {}) {

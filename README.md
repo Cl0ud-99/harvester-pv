@@ -10,8 +10,8 @@ the basalt buttes, the moss belt, ~7 000 conifers, the field modules and the ste
 The scene runs as a six-shot cinematic with a time-of-day slider, plus free explore, first-person
 walk and free-fly modes.
 
-**Scope** — 220 m tower, 184 m span, 82 m saucer station, a 48 m open lava shaft, 2.6 km of terrain.
-**Status** — v0.0.1, playable vertical slice. Modelling detail and atmosphere work continue.
+**Scope** — 220 m tower, 184 m span, 95 m saucer station, a 48 m open lava shaft, 2.6 km of terrain.
+**Status** — v0.0.9, playable vertical slice. Modelling detail and atmosphere work continue.
 **Not** — a game, a plugin, or a pre-rendered film. One HTML file that opens by double-click.
 
 Built with Three.js and hand-written shaders. No external assets: every texture, tree, rock and decal is generated procedurally at load.
@@ -79,12 +79,15 @@ Details: [well catwalks](docs/shots/detail-well.png) · [decals](docs/shots/deta
 4. **Open-ended cylinders are single-sided.** They vanish from inside; anything seen from both sides needs real thickness.
 5. **Shadows need a frustum that covers the subject** — a 220 m tower with a ±190 m shadow camera leaves the top unshadowed.
 6. **Metalness is not decoration.** A `metalness: 0.9` surface with nothing to reflect renders black. Backlit steel needs albedo and lower metalness, not more lights.
+7. **Volumetric light** is a half-res, 16-step screen-space raymarch inserted before Bloom. Each step takes one camera-depth sample and one sun-shadow sample, so the tower and forest actually cut the shafts. It costs two extra draw calls; the full stack runs at ~200–260 fps at 1600×900 on the dev machine, with the sun shadow map rebuilt only on cuts.
+8. **TAA runs before volumetrics** and writes its resolve back into the composer readBuffer without swapping, so the scene depth attachment survives for the raymarch. Halton jitter is applied after the shot camera's projection update; history resets on every hard cut.
+9. **Deck reflection** is a real planar mirror pass: the y=0 plane mirrors the camera with oblique near-plane clipping, renders only layer-2 tower/station/sky geometry at half resolution, and the deck material samples it with a Fresnel-weighted projection. The deck mesh stays off that layer so it never samples its own target.
+10. **Dry soil ring** has its own ochre/gravel/crack texture and an `aDry` vertex mask; the ground shader mixes it over the moss map outside ~265 m and forces roughness toward 0.95 so it reads dry, not wet. The moss belt itself was expanded to a 373 m outer fade, roughly doubling the visible green area around the tower twice.
 
 ## Known gaps
 
-- Armour plating is still simpler than the reference — no rivet rows or layered panel stacks on the crown.
-- The dry soil ring outside the moss belt still borrows the grass texture and reads too bright.
-- No TAA, no planar reflections, no volumetric light yet.
+- Crown now has three stacked armour tiers and blue trim; rivet rows and edge-wear detail are still lighter than the reference.
+- Planar reflection is deck-only (no SSR for the rest of the station); TAA is Halton-jittered with depth reprojection, and volumetric light is a screen-space sun raymarch (half-res, 16 steps, depth + sun-shadow occlusion).
 - Trees are stacked-cone impostors: fine at mid distance, readable as geometry within ~5 m.
 
 ## Layout
@@ -96,7 +99,8 @@ src/main.js                   renderer, lights, time-of-day, roam, debug hooks
 src/cinema.js                 six-shot data + state machine
 src/hud.js                    film / explore HUD
 src/lib/loft.js               lofting with automatic winding fix
-src/lib/post.js               Bloom → Output(ACES) → Grade → SMAA
+src/lib/post.js               TAA → Volumetric → Bloom → Output(ACES) → Grade → SMAA
+src/lib/reflection.js         deck planar reflection (mirror camera + layers)
 src/lib/materials.js          material library
 src/lib/textures.js           procedural canvas textures
 src/world/harvester.js        the tower
@@ -107,6 +111,6 @@ src/world/props.js            field modules, containers, beacon
 src/world/decals.js           stencils, hazard plates, rust
 src/world/lava.js             lava shader + shaft
 src/world/sky.js              sky shader + time stops
-tool/shot.mjs                 puppeteer capture
+tools/shot.mjs               puppeteer capture
 tools/pack.mjs                single-file packer
 ```

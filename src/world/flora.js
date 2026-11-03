@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeList, mulberry32 } from '../lib/util.js';
-import { terrainH, RIFT_A } from './terrain.js';
+import { terrainH, SET, RIFT_A } from './terrain.js';
 
 const TAU = Math.PI * 2;
 
@@ -75,7 +75,8 @@ export function createFlora(M, scene) {
   const rockVariants = [];
   for (let i = 0; i < 6; i++) rockVariants.push(boulder(900 + i * 17));
 
-  const blocked = (x, z) => Math.hypot(x, z) < 104;
+  const deckShift = SET.ringR - 82;
+  const blocked = (x, z) => Math.hypot(x, z) < 104 + deckShift;
   const inCorridor = (x, z) => {
     const a = Math.atan2(z, x);
     let d = a - RIFT_A;
@@ -88,7 +89,7 @@ export function createFlora(M, scene) {
   const PATCHES = 330;
   for (let p = 0; p < PATCHES; p++) {
     const pa = rnd() * TAU;
-    const pr = 118 + rnd() * 780;
+    const pr = 118 + deckShift + rnd() * 780;
     const cx = Math.cos(pa) * pr, cz = Math.sin(pa) * pr;
     const radius = 26 + rnd() * 62;
     const n = pr > 420 ? 55 + Math.floor(rnd() * 90) : 30 + Math.floor(rnd() * 70);
@@ -113,7 +114,7 @@ export function createFlora(M, scene) {
   /* boulders */
   for (let i = 0; i < 420; i++) {
     const a = rnd() * TAU;
-    const r = 108 + rnd() * 320;
+    const r = 108 + deckShift + rnd() * 320;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     if (blocked(x, z)) continue;
     const y = terrainH(x, z);

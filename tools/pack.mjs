@@ -8,10 +8,10 @@ const js = fs.readFileSync(path.join(root, 'dist/app.js'), 'utf8');
 
 let out = html;
 
-out = out.replace(/<link[^>]*href="\.?\/?style\.css"[^>]*>/i, `<style>\n${css}\n</style>`);
+out = out.replace(/<link[^>]*href="\.?\/?style\.css"[^>]*>/i, () => `<style>\n${css}\n</style>`);
 
 const safe = js.replace(/<\/script>/gi, '<\\/script>');
-out = out.replace(/<script[^>]*src="\.?\/?dist\/app\.js"[^>]*>\s*<\/script>/i, `<script>\n${safe}\n</script>`);
+out = out.replace(/<script[^>]*src="\.?\/?dist\/app\.js"[^>]*>\s*<\/script>/i, () => `<script>\n${safe}\n</script>`);
 
 if (out.includes('dist/app.js') || out.includes('href="./style.css"')) {
   console.error('[pack] external refs still present');

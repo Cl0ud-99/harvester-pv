@@ -1,6 +1,6 @@
 {
   "name": "apex-scene",
-  "version": "0.0.1",
+  "version": "0.0.9",
   "description": "Apex-style Harvester megastructure — realtime scene",
   "main": "index.js",
   "scripts": {
@@ -8,6 +8,7 @@
     "watch": "node tools/build.mjs --watch",
     "serve": "node tools/serve.mjs",
     "shot": "node tools/shot.mjs",
+    "pack": "node tools/pack.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

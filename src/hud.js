@@ -98,6 +98,8 @@ export function createHUD(app, cinema) {
     clean = !clean;
     document.body.classList.toggle('hidehud', clean);
     el.btnClean.classList.toggle('on', clean);
+    el.btnClean.textContent = clean ? '▣' : '◻';
+    el.btnClean.title = clean ? 'Show interface (H / Esc)' : 'Clean view (H)';
   }
 
   let audio = null;
@@ -116,6 +118,7 @@ export function createHUD(app, cinema) {
       case 'Space': e.preventDefault(); cinema.toggle(); setPlaying(!cinema.state.paused); break;
       case 'KeyE': cinema.explore(); break;
       case 'KeyH': toggleClean(); break;
+      case 'Escape': if (document.body.classList.contains('hidehud')) toggleClean(); break;
       case 'KeyM': toggleSound(); break;
       case 'ArrowRight': cinema.start(Math.min(cinema.state.shot + 1, cinema.SHOTS.length - 1)); setPlaying(true); break;
       case 'ArrowLeft': cinema.start(Math.max(cinema.state.shot - 1, 0)); setPlaying(true); break;

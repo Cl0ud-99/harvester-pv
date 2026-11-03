@@ -178,8 +178,13 @@ export function createHarvester(M, scene) {
 
   /* ---------------- molten core ---------------- */
   const coreMat = makeLavaMaterial({ vertical: true, scale: 1.0, flow: 0.12, hot: 0xfff4d8, mid: 0xff6a16, cool: 0x8f1c02 });
-  const core = new THREE.Mesh(new THREE.CylinderGeometry(8.4, 9.6, H.coreTop + 52, 40, 1, true), coreMat);
-  core.position.y = (H.coreTop - 42) / 2;
+  // stop the molten column below the emitter plinth; it used to poke out
+  // through the plinth's upper taper as an orange scalloped band
+  const coreTopY = 200;           // was 225 (H.coreTop + 52 - 47)
+  const coreBottomY = -47;
+  const coreHeight = coreTopY - coreBottomY;
+  const core = new THREE.Mesh(new THREE.CylinderGeometry(8.4, 9.6, coreHeight, 40, 1, true), coreMat);
+  core.position.y = (coreTopY + coreBottomY) / 2;
   core.name = 'moltenCore';
   root.add(core);
   for (let i = 0; i < 8; i++) {
@@ -300,6 +305,31 @@ export function createHarvester(M, scene) {
   }
   A.add(mergeList(brow), 'armourBlue');
 
+  // layered crown armour: three overlapping octagonal plate stacks + blue trim
+  const plateRing = (y, r) => {
+    const ring = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU + Math.PI / 8;
+      ring.push(V(Math.cos(a) * r, 0, Math.sin(a) * r));
+    }
+    return { c: V(0, y, 0), ring };
+  };
+  const crownStacks = [
+    { mat: 'armourDirty', secs: [[164, 48], [168, 55], [173, 57], [178, 53]] },
+    { mat: 'armour', secs: [[180, 56], [185, 62], [190, 64], [195, 59]] },
+    { mat: 'armourDirty', secs: [[196, 52], [200, 55], [204, 53], [207, 47]] },
+  ];
+  for (const stack of crownStacks) {
+    A.add(loftPoly(stack.secs.map(([y, r]) => plateRing(y, r)), { uScale: 0.4, vScale: 0.08 }), stack.mat);
+  }
+  const crownTrim = [];
+  for (const [y, r] of [[173.6, 57.2], [190.6, 64.2], [203.6, 53.2]]) {
+    const g = new THREE.CylinderGeometry(r, r, 0.8, 8, 1, true);
+    g.rotateY(Math.PI / 8); g.translate(0, y, 0);
+    crownTrim.push(g);
+  }
+  A.add(mergeList(crownTrim), 'armourBlue');
+
   // logo faces
   for (let i = 0; i < 4; i++) {
     const a = (i / 4) * TAU + Math.PI / 4;
@@ -331,12 +361,27 @@ export function createHarvester(M, scene) {
   }
   A.add(mergeList(canopy), 'armourDirty');
 
-  const hub = new THREE.CylinderGeometry(12.0, 15.2, 6.0, 8, 1, false);
-  hub.rotateY(Math.PI / 8); hub.translate(0, 216.0, 0);
-  A.add(hub, 'armour');
-  const hub2 = new THREE.CylinderGeometry(7.0, 10.0, 6.6, 8, 1, false);
-  hub2.rotateY(Math.PI / 8); hub2.translate(0, 221.5, 0);
-  A.add(hub2, 'darkSteel');
+  // emitter plinth: trapezoidal octagonal stack, wide at the crown,
+  // narrowing up to the beam root (no flat disc caps)
+  const emitterRing = (y, r) => {
+    const ring = [];
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * TAU + Math.PI / 8;
+      ring.push(V(Math.cos(a) * r, 0, Math.sin(a) * r));
+    }
+    return { c: V(0, y, 0), ring };
+  };
+  const emitterLower = [[208, 24.0], [210.5, 22.2], [215.5, 15.2], [221, 9.6]];
+  A.add(loftPoly(emitterLower.map(([y, r]) => emitterRing(y, r)), { uScale: 0.35, vScale: 0.08 }), 'armour');
+  const emitterUpper = [[221, 9.6], [224.5, 8.3], [227.0, 7.6]];
+  A.add(loftPoly(emitterUpper.map(([y, r]) => emitterRing(y, r)), { uScale: 0.35, vScale: 0.08 }), 'darkSteel');
+
+  const emitterBand = new THREE.CylinderGeometry(9.75, 9.75, 0.9, 8, 1, true);
+  emitterBand.rotateY(Math.PI / 8); emitterBand.translate(0, 221.0, 0);
+  A.add(emitterBand, 'armourBlue');
+  const emitterLip = new THREE.CylinderGeometry(7.8, 7.8, 0.7, 8, 1, true);
+  emitterLip.rotateY(Math.PI / 8); emitterLip.translate(0, 226.7, 0);
+  A.add(emitterLip, 'armourBlue');
 
   const masts = [];
   for (let i = 0; i < 6; i++) {
@@ -351,44 +396,70 @@ export function createHarvester(M, scene) {
   beamGroup.position.y = 226;
   root.add(beamGroup);
 
+  /* flame plume profile: narrow at the nozzle, swells into a turbulent
+     belly, then thins back out as it climbs. Values are (radius, height). */
+  function plumeGeometry(scale = 1) {
+    const profile = [
+      [2.6, 0], [3.3, 5], [4.8, 12], [6.6, 22], [8.6, 38], [10.2, 62],
+      [10.8, 90], [10.2, 130], [8.8, 200], [6.9, 320], [5.0, 520],
+      [3.8, 800], [3.1, 1200], [2.5, 1600],
+    ];
+    // widen the plume 50% above the exit; keep the nozzle radius untouched
+    return new THREE.LatheGeometry(profile.map(([r, y]) => {
+      const widen = 1.0 + 0.5 * smoothstep(4.0, 45.0, y);
+      return new THREE.Vector2(r * scale * widen, y);
+    }), 28);
+  }
+
   const beamMat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(0xffb066) }, uOpacity: { value: 1 } },
-    vertexShader: `varying vec2 vUv; varying vec3 vN;
-      void main(){ vUv=uv; vN=normalize(normalMatrix*normal);
-        gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-    fragmentShader: `precision highp float; varying vec2 vUv; varying vec3 vN;
+    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(0xff7a2a) }, uOpacity: { value: 1 } },
+    vertexShader: /* glsl */`uniform float uTime;
+      varying vec2 vUv; varying vec3 vN;
+      void main(){
+        vUv = uv;
+        vec3 p = position;
+        float h = uv.y;
+        float ang = atan(p.z, p.x);
+        float lower = exp(-h * 9.0);
+        float sway = sin(ang * 4.0 + uTime * 1.7 + h * 13.0) * 0.5
+                  + sin(ang * 7.0 - uTime * 2.3 + h * 21.0) * 0.25;
+        p.xz *= 1.0 + sway * 0.18 * lower;
+        p.xz += vec2(sin(uTime * 1.1 + h * 9.0), cos(uTime * 0.9 + h * 7.0)) * 1.4 * lower;
+        vN = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+      }`,
+    fragmentShader: /* glsl */`precision highp float; varying vec2 vUv; varying vec3 vN;
       uniform float uTime; uniform vec3 uColor; uniform float uOpacity;
       float h(vec2 p){return fract(sin(dot(p,vec2(41.3,289.1)))*43758.5453);}
       float n2(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
         return mix(mix(h(i),h(i+vec2(1.0,0.0)),f.x),mix(h(i+vec2(0.0,1.0)),h(i+vec2(1.0,1.0)),f.x),f.y);}
       void main(){
-        float edge = pow(abs(vN.x)*0.5+0.5, 1.6);
-        float streak = n2(vec2(vUv.y*4.0 - uTime*2.4, vUv.x*6.0)) * 0.5 + 0.5;
-        float flick = 0.85 + 0.15*sin(uTime*13.0 + vUv.y*11.0);
-        vec3 c = mix(vec3(1.0,0.99,0.94), uColor, clamp(vUv.y*2.2,0.0,1.0));
-        gl_FragColor = vec4(c * (0.9 + streak*0.7) * flick, uOpacity * edge);
+        float edge = pow(abs(vN.x)*0.5+0.5, 1.4);
+        float streak = n2(vec2(vUv.y*5.0 - uTime*2.8, vUv.x*7.0)) * 0.5 + 0.5;
+        float lick = n2(vec2(vUv.x*11.0 + uTime*1.6, vUv.y*3.0 - uTime*0.9)) * 0.5 + 0.5;
+        float flick = 0.78 + 0.22*sin(uTime*13.0 + vUv.y*11.0);
+        vec3 c = mix(vec3(1.0,0.94,0.72), uColor, clamp(vUv.y*11.0,0.0,1.0));
+        float a = uOpacity * edge * (0.85 + streak*0.55 + lick*0.15);
+        gl_FragColor = vec4(c * (0.9 + streak*0.7) * flick, a);
       }`,
     transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
   });
 
-  const beamCore = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.8, 1600, 24, 1, true), beamMat);
-  beamCore.position.y = 800;
+  const beamCore = new THREE.Mesh(plumeGeometry(1), beamMat);
   beamCore.frustumCulled = false;
   beamGroup.add(beamCore);
 
   const beamGlowMat = beamMat.clone();
   beamGlowMat.uniforms = THREE.UniformsUtils.clone(beamMat.uniforms);
-  beamGlowMat.uniforms.uOpacity.value = 0.30;
-  const beamGlow = new THREE.Mesh(new THREE.CylinderGeometry(9.0, 18.0, 1600, 24, 1, true), beamGlowMat);
-  beamGlow.position.y = 800;
+  beamGlowMat.uniforms.uOpacity.value = 0.24;
+  const beamGlow = new THREE.Mesh(plumeGeometry(1.6), beamGlowMat);
   beamGlow.frustumCulled = false;
   beamGroup.add(beamGlow);
 
   const beamHalo = new THREE.Mesh(
-    new THREE.CylinderGeometry(46, 24, 1600, 20, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+    plumeGeometry(2.4),
+    new THREE.MeshBasicMaterial({ color: 0xff7a2a, transparent: true, opacity: 0.028, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
   );
-  beamHalo.position.y = 800;
   beamHalo.frustumCulled = false;
   beamGroup.add(beamHalo);
 
@@ -398,7 +469,7 @@ export function createHarvester(M, scene) {
     const a = (i / 4) * TAU + Math.PI / 4;
     const dir = V(Math.cos(a), 0, Math.sin(a));
     const top = dir.clone().multiplyScalar(15).setY(H.shoulder + 4);
-    const bot = dir.clone().multiplyScalar(64).setY(2.5);
+    const bot = dir.clone().multiplyScalar(64).setY(-3.2);
     const mid = top.clone().add(bot).multiplyScalar(0.5);
     const q = new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), top.clone().sub(bot).normalize());
 
@@ -413,6 +484,9 @@ export function createHarvester(M, scene) {
     braceDark.push(g2);
 
     bracePipes.push(tube(dir.clone().multiplyScalar(16).setY(H.shoulder + 2), dir.clone().multiplyScalar(62).setY(4.0), 1.0, 1.0, 8));
+
+    // deck foot flange around the embedded brace end
+    braceDark.push(chunk(12.0, 1.4, 7.4, dir.x * 64, 0.2, dir.z * 64, -a));
   }
   A.add(mergeList(braceWhite), 'armourDirty');
   A.add(mergeList(braceDark), 'darkSteel');

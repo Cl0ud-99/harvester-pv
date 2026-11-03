@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { panelSet, groundSet, rockSet, deckSet, hazardTex, hLogoTex, textTex } from './textures.js';
+import { panelSet, groundSet, dryGroundSet, rockSet, deckSet, deckMetalSet, hazardTex, hLogoTex, textTex } from './textures.js';
 
 export const PAL = {
   white: '#dcd6c8',
@@ -22,7 +22,10 @@ export function createMaterials() {
   const whiteDirty = panelSet('armourDirty', { base: PAL.whiteDirty, seam: 'rgba(26,26,24,0.55)', dirt: 0.85, rust: 0.6, rows: 3, cols: 3, roughBase: '#9a9a9a', seed: 12 });
   const bluePanel = panelSet('bluePanel', { base: PAL.blue, seam: 'rgba(10,22,32,0.55)', accent: 'rgba(220,225,230,0.75)', dirt: 0.5, rust: 0.15, rows: 2, cols: 3, seed: 3 });
   const deck = deckSet();
+  const deckMetal = deckMetalSet({ size: 1024 });
+  const deckMetalFine = deckMetalSet({ size: 1024, fine: true });
   const ground = groundSet({ repeat: [52, 52], size: 2048 });
+  const dryGround = dryGroundSet({ repeat: [52, 52], size: 1024 });
   const rock = rockSet({ repeat: [3, 3] });
 
   const M = {};
@@ -71,10 +74,26 @@ export function createMaterials() {
     envMapIntensity: 0.8,
   });
 
+  M.deckUpper = new THREE.MeshPhysicalMaterial({
+    map: deckMetalFine.map, normalMap: deckMetalFine.normalMap, roughnessMap: deckMetalFine.roughnessMap,
+    normalScale: new THREE.Vector2(0.55, 0.55),
+    color: 0xffffff, metalness: 0.29, roughness: 0.56, envMapIntensity: 0.45,
+    clearcoat: 0.15, clearcoatRoughness: 0.5, flatShading: true, side: THREE.DoubleSide,
+  });
+
+  M.deckUnder = new THREE.MeshStandardMaterial({
+    map: deckMetalFine.map, normalMap: deckMetalFine.normalMap, roughnessMap: deckMetalFine.roughnessMap,
+    normalScale: new THREE.Vector2(0.6, 0.6),
+    color: 0x6f777e, metalness: 0.18, roughness: 0.82,
+    emissive: 0xffffff, emissiveMap: deckMetalFine.map, emissiveIntensity: 0.55,
+    side: THREE.DoubleSide,
+  });
+
   M.deckVC = new THREE.MeshPhysicalMaterial({
-    map: deck.map, normalMap: deck.normalMap, roughnessMap: deck.roughnessMap,
-    color: 0xffffff, vertexColors: true, metalness: 0.22, roughness: 0.80, envMapIntensity: 0.42,
-    clearcoat: 0.25, clearcoatRoughness: 0.5, envMapIntensity: 0.55,
+    map: deckMetal.map, normalMap: deckMetal.normalMap, roughnessMap: deckMetal.roughnessMap,
+    normalScale: new THREE.Vector2(0.85, 0.85),
+    color: 0xffffff, vertexColors: true, metalness: 0.62, roughness: 0.58, envMapIntensity: 0.95,
+    clearcoat: 0.32, clearcoatRoughness: 0.32,
   });
 
   M.deckWet = new THREE.MeshPhysicalMaterial({
@@ -85,9 +104,10 @@ export function createMaterials() {
 
   M.ground = new THREE.MeshStandardMaterial({
     map: ground.map, normalMap: ground.normalMap, roughnessMap: ground.roughnessMap,
-    normalScale: new THREE.Vector2(0.28, 0.28),
+    normalScale: new THREE.Vector2(0.42, 0.42),
     color: 0xffffff, metalness: 0.0, roughness: 1.0, envMapIntensity: 0.28,
   });
+  M.groundDry = dryGround;
 
   M.rock = new THREE.MeshStandardMaterial({
     map: rock.map, normalMap: rock.normalMap, normalScale: new THREE.Vector2(2.3, 2.3),
@@ -113,7 +133,7 @@ export function createMaterials() {
   });
 
   M.hazard = new THREE.MeshStandardMaterial({ map: hazardTex(), color: 0xffffff, metalness: 0.2, roughness: 0.85 });
-  M.paint = new THREE.MeshStandardMaterial({ color: 0xb9a05c, metalness: 0.1, roughness: 0.9 });
+  M.paint = new THREE.MeshStandardMaterial({ color: 0xb9a05c, metalness: 0.1, roughness: 0.9, side: THREE.DoubleSide });
   M.rubber = new THREE.MeshStandardMaterial({ color: 0x1a1a1c, metalness: 0.05, roughness: 0.95 });
 
   M.teal = new THREE.MeshPhysicalMaterial({ color: 0x2f6f74, metalness: 0.35, roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.3 });

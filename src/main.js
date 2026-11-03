@@ -11,6 +11,7 @@ import { createDecals } from './world/decals.js';
 import { createDust } from './world/dust.js';
 import { createLavaWell } from './world/lava.js';
 import { createPost } from './lib/post.js';
+import { PlanarReflection, attachDeckReflection } from './lib/reflection.js';
 import { createCinema } from './cinema.js';
 import { createHUD } from './hud.js';
 import { clamp, lerp, smoothstep, damp } from './lib/util.js';
@@ -55,7 +56,7 @@ controls.enabled = false;
  * ------------------------------------------------------------------ */
 const sun = new THREE.DirectionalLight(0xffe2b8, 3.0);
 sun.castShadow = true;
-sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.near = 10;
 sun.shadow.camera.far = 2600;
 sun.shadow.camera.left = -620;
@@ -65,6 +66,10 @@ sun.shadow.camera.bottom = -420;
 sun.shadow.bias = -0.00012;
 sun.shadow.normalBias = 0.05;
 sun.shadow.radius = 1.6;
+// the sun is static relative to the scene; refresh the 4k shadow map at
+// ~10 Hz only when the time-of-day palette changes (big frame-time win)
+sun.shadow.autoUpdate = false;
+sun.shadow.needsUpdate = true;
 sun.target.position.set(0, 60, 0);
 scene.add(sun);
 scene.add(sun.target);
@@ -93,7 +98,7 @@ const hud = {
 };
 hud.setLoad(0.05, 'BUILDING SKY');
 
-let sky, M, world = {}, lava, harvester;
+let sky, M, world = {}, lava, harvester, reflection;
 const app = {
   scene, camera, renderer, controls,
   qualityLevel: 2,      // 0 LQ / 1 MQ / 2 HQ
@@ -154,6 +159,17 @@ async function build() {
   lava = createLavaWell(M, scene);
   world.lava = lava;
 
+  hud.setLoad(0.94, 'FOCUSING THE REFLECTION');
+  reflection = new PlanarReflection(renderer, scene, camera, { y: SET.deckY, clipBias: 0.02, layer: 2 });
+  reflection.addToLayer([harvester.group, world.ring.group, sky.mesh]);
+  for (const l of [sun, hemi, rim, fill]) l.layers.enable(2);
+  const deckMesh = world.ring.group.getObjectByName('deckVC');
+  if (deckMesh) deckMesh.layers.disable(2);
+  app.deckReflection = {
+    reflection,
+    uniforms: attachDeckReflection(M.deckVC, reflection, 0.385),
+  };
+
   hud.setLoad(0.96, 'COMPILING SHADERS');
   await nextFrame();
 }
@@ -162,17 +178,23 @@ async function build() {
  *  time of day
  * ------------------------------------------------------------------ */
 let currentT = 0.3;
+let shadowDirty = true, shadowAccum = 1;
 const sunPos = new THREE.Vector3();
+const sunOffset = new THREE.Vector3(0, 40, 0);
+const hemiDay = new THREE.Color(0x9fc0dd);
+const hemiNight = new THREE.Color(0x24314a);
 app.setTime = function (t, instant = false) {
   currentT = clamp(t, 0, 1);
+  // only refresh shadows on cuts / explicit scrubs, never every frame
+  if (instant) { shadowDirty = true; shadowAccum = 1; }
   sky.setTime(currentT);
   sun.color.copy(sky.uniforms.uSunColor.value);
   sunPos.copy(sky.sunDir).multiplyScalar(600);
-  sun.position.copy(sunPos).add(new THREE.Vector3(0, 40, 0));
+  sun.position.copy(sunPos).add(sunOffset);
   const nightK = smoothstep(0.62, 1.0, currentT);
   sun.intensity = lerp(6.2, 0.0, nightK) * lerp(1.0, 0.70, currentT);
   hemi.intensity = lerp(0.95, 0.30, nightK);
-  hemi.color.copy(new THREE.Color(0x9fc0dd)).lerp(new THREE.Color(0x24314a), nightK);
+  hemi.color.copy(hemiDay).lerp(hemiNight, nightK);
   rim.intensity = lerp(0.5, 0.25, nightK);
   fill.intensity = lerp(0.95, 0.30, nightK);
   if (lava) {
@@ -185,7 +207,7 @@ app.setTime = function (t, instant = false) {
   if (app.hud && app.hud.timeSlider) app.hud.timeSlider.value = String(Math.round(currentT * 1000));
 };
 
-app.setFov = (f) => { camera.fov = f; camera.updateProjectionMatrix(); };
+app.setFov = (f) => { camera.fov = f; camera.updateProjectionMatrix(); post?.taa?.reset(); };
 
 /* ------------------------------------------------------------------ *
  *  roam modes
@@ -200,6 +222,7 @@ app.setRoam = function (m) {
   // the bokeh pass keeps the last shot's focus while you fly/walk
   if (cinema) { cinema.state.active = false; cinema.state.exploring = m !== 'orbit'; cinema.state.paused = true; }
   if (post?.bokeh) post.bokeh.enabled = false;
+  post?.taa?.reset();
   document.body.classList.toggle('roam', m !== 'orbit');
   if (post?.bokeh) post.bokeh.enabled = false;
   if (m === 'orbit') {
@@ -328,6 +351,25 @@ function updateRoam(dt) {
 }
 
 /* ------------------------------------------------------------------ *
+ *  TAA jitter (Halton) — applied after the shot/roam camera settles
+ * ------------------------------------------------------------------ */
+function applyTaaJitter() {
+  const taa = post?.taa;
+  if (!taa || !taa.enabled) {
+    camera.updateProjectionMatrix();
+    return;
+  }
+  camera.updateProjectionMatrix();
+  const w = renderer.domElement.width || window.innerWidth || 1;
+  const h = renderer.domElement.height || window.innerHeight || 1;
+  const [jx, jy] = taa.nextJitter(w, h);
+  const e = camera.projectionMatrix.elements;
+  e[8] -= jx;
+  e[9] -= jy;
+  camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+}
+
+/* ------------------------------------------------------------------ *
  *  boot
  * ------------------------------------------------------------------ */
 let post, cinema;
@@ -378,6 +420,7 @@ async function boot() {
     shots: cinema.SHOTS.length,
   });
   window.__setCam = (pos, target, fov) => {
+    post?.taa?.reset();
     cinema.state.active = false;
     cinema.state.exploring = true;
     controls.enabled = true;
@@ -395,6 +438,8 @@ async function boot() {
  *  loop
  * ------------------------------------------------------------------ */
 const clock = new THREE.Clock();
+const camDir = new THREE.Vector3();
+const sunScreen = new THREE.Vector3();
 let elapsed = 0;
 let fpsAcc = 0, fpsFrames = 0, lastFps = 60, fpsTimer = 0;
 
@@ -414,12 +459,34 @@ function frame() {
   updateRoam(dt);
   if (roam !== 'orbit' && post?.bokeh && post.bokeh.enabled) post.bokeh.enabled = false;
 
+  if (reflection) reflection.render();
+  applyTaaJitter();
+
   // sun glare uniform: project sun into screen space
   if (post) {
-    const p = sky.uniforms.uSunDir.value.clone().multiplyScalar(1000).add(camera.position).project(camera);
+    const p = sunScreen.copy(sky.uniforms.uSunDir.value).multiplyScalar(1000).add(camera.position).project(camera);
     post.grade.uniforms.uSunPos.value.set(p.x * 0.5 + 0.5, p.y * 0.5 + 0.5);
-    const behind = sky.uniforms.uSunDir.value.dot(camera.getWorldDirection(new THREE.Vector3())) > 0.05;
+    const behind = sky.uniforms.uSunDir.value.dot(camera.getWorldDirection(camDir)) > 0.05;
     post.grade.uniforms.uSunVisible.value = p.z < 1 && behind ? 1 : 0;
+
+    if (post.volumetric) {
+      const vu = post.volumetric.volumeMaterial.uniforms;
+      vu.uSunDir.value.copy(sky.uniforms.uSunDir.value);
+      vu.uSunColor.value.copy(sky.uniforms.uSunColor.value);
+      vu.uSunPos.value.copy(post.grade.uniforms.uSunPos.value);
+      vu.uSunVisible.value = post.grade.uniforms.uSunVisible.value;
+      vu.uIntensity.value = 0.9 * clamp(sun.intensity / 6.0, 0.0, 1.0);
+      vu.uTime.value = elapsed;
+      if (sun.shadow.map) vu.uShadowMap.value = sun.shadow.map.texture;
+      vu.uShadowMatrix.value.copy(sun.shadow.matrix);
+    }
+  }
+
+  shadowAccum += dt;
+  if (shadowDirty && shadowAccum >= 0.1) {
+    sun.shadow.needsUpdate = true;
+    shadowDirty = false;
+    shadowAccum = 0;
   }
 
   renderer.info.reset();
@@ -444,15 +511,21 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
   post?.setSize(w, h);
+  reflection?.setSize(w, h);
 });
 
 app.applyQuality = () => {
   const lv = ['low', 'mid', 'high'][app.qualityLevel];
   post?.setQuality(lv);
   app.quality.dof = lv === 'high';
+  if (app.deckReflection) {
+    app.deckReflection.reflection.enabled = lv !== 'low';
+    app.deckReflection.uniforms.uReflectionStrength.value = lv === 'low' ? 0 : 0.385;
+  }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lv === 'low' ? 1 : 1.6));
   renderer.setSize(window.innerWidth, window.innerHeight);
   post?.setSize(window.innerWidth, window.innerHeight);
+  reflection?.setSize(window.innerWidth, window.innerHeight);
 };
 
 boot().then(() => frame()).catch((e) => {

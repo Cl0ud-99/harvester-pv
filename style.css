@@ -5,13 +5,17 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;overflow:hidden;background:#07090b;color:var(--ink);font-family:var(--font);}
-canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:none}
+canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:default}
 body.explore canvas#gl{cursor:grab}
-body.hidehud #hud{opacity:0;pointer-events:none}
+body.locked canvas#gl{cursor:none}
+body.hidehud #hud{pointer-events:none}
+body.hidehud #hud > *:not(.hud-tr){opacity:0;pointer-events:none}
+body.hidehud #hud .hud-tr{opacity:1}
 #hud{position:fixed;inset:0;pointer-events:none;transition:opacity .5s ease;z-index:10;
   font-family:var(--font);letter-spacing:.08em;text-transform:uppercase;}
 #hud>*{pointer-events:none}
 #hud button,#hud input{pointer-events:auto}
+body:not(.hidehud) #hud .controls{pointer-events:auto}
 
 /* ---------- brand ---------- */
 .hud-tl{position:absolute;left:0;top:0;padding:26px 30px;transition:opacity .4s}
@@ -48,7 +52,8 @@ body.clean .hud-tl,body.clean .hud-bl,body.clean .hud-br,body.clean .controls,bo
 .controls{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(8.6vh + 22px);
   display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--panel);
   border:1px solid var(--line);backdrop-filter:blur(10px);transition:.4s}
-body.explore .controls{opacity:0;pointer-events:none}
+body.explore .controls{opacity:.92;pointer-events:auto}
+body.explore.locked .controls{opacity:0;pointer-events:none}
 .tab{background:none;border:none;color:var(--dim);font-family:var(--font);font-size:9.5px;
   letter-spacing:.3em;cursor:pointer;padding:5px 2px}
 .tab.active{color:#fff}

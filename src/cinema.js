@@ -122,6 +122,7 @@ export function createCinema(app, hud) {
     document.body.classList.remove('explore', 'roam', 'locked');
     app.setMode?.('cinema');
     apply(state.shot, 0, { instantEnv: true });
+    app.post?.taa?.reset();
     hud?.onShotStart?.(state.shot);
   }
 
@@ -134,6 +135,7 @@ export function createCinema(app, hud) {
     if (controls) controls.enabled = false;
     document.body.classList.add('cinema');
     apply(state.shot, clamp(p, 0, 1), { paused: true, linear: true, instantEnv: true });
+    app.post?.taa?.reset();
     hud?.onShotStart?.(state.shot);
     hud?.setPlaying?.(false);
   }
@@ -182,6 +184,7 @@ export function createCinema(app, hud) {
     }
     document.body.classList.remove('cinema');
     document.body.classList.add('explore');
+    app.post?.taa?.reset();
     hud?.onExplore?.();
   }
 
