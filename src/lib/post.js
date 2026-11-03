@@ -15,7 +15,7 @@ const GradeShader = {
     uExposure: { value: 1.04 },
     uSunPos: { value: new THREE.Vector2(0.5, 0.6) },
     uSunVisible: { value: 0.0 },
-    uRayStrength: { value: 0.85 },
+    uRayStrength: { value: 0.58 },
     uRayThreshold: { value: 0.62 },
     uTime: { value: 0 },
     uGrain: { value: 0.006 },

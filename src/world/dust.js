@@ -1,5 +1,23 @@
 import * as THREE from 'three';
 
+/* soft round sprite — without it PointsMaterial renders hard squares */
+function dotSprite() {
+  const S = 64;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = S;
+  const g = cv.getContext('2d');
+  const grd = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  grd.addColorStop(0.0, 'rgba(255,255,255,1)');
+  grd.addColorStop(0.35, 'rgba(255,255,255,0.55)');
+  grd.addColorStop(1.0, 'rgba(255,255,255,0)');
+  g.fillStyle = grd;
+  g.fillRect(0, 0, S, S);
+  const t = new THREE.CanvasTexture(cv);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.needsUpdate = true;
+  return t;
+}
+
 /**
  * Drifting ash / dust motes. Cheap atmosphere: keeps a 160 m box of particles
  * anchored to the camera, so density stays constant wherever you roam.
@@ -24,10 +42,12 @@ export function createDust(scene, opts = {}) {
 
   const mat = new THREE.PointsMaterial({
     color: 0xffd8a8,
-    size: 0.30,
+    map: dotSprite(),
+    size: 0.16,
     sizeAttenuation: true,
     transparent: true,
-    opacity: 0.42,
+    opacity: 0.30,
+    alphaTest: 0.02,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     fog: true,
