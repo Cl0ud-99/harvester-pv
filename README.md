@@ -1,5 +1,19 @@
 # HARVESTER — Apex-style Megastructure
 
+## About
+
+A single-scene, real-time environment study of the Hammond Robotics **Harvester** from Apex Legends'
+World's Edge — rebuilt from reference stills in Three.js with no external assets.
+
+Everything you see is generated at load: the armour plating and its panel lines, the rust truss cage,
+the basalt buttes, the moss belt, ~7 000 conifers, the field modules and the stencilled decals.
+The scene runs as a six-shot cinematic with a time-of-day slider, plus free explore, first-person
+walk and free-fly modes.
+
+**Scope** — 220 m tower, 184 m span, 82 m saucer station, a 48 m open lava shaft, 2.6 km of terrain.
+**Status** — v0.0.1, playable vertical slice. Modelling detail and atmosphere work continue.
+**Not** — a game, a plugin, or a pre-rendered film. One HTML file that opens by double-click.
+
 A real-time, single-scene study of a **Hammond Robotics Harvester**: a 220 m armoured tower with four splayed legs, a molten core, a 1.6 km energy beam, and a saucer station built over an open lava shaft — sitting in a forested volcanic rift.
 
 Built with Three.js and hand-written shaders. No external assets: every texture, tree, rock and decal is generated procedurally at load.
