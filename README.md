@@ -9,6 +9,18 @@ Apex Legends 风格的单场景实时演示：Hammond Robotics 收割机（Harve
 - **双击 `HARVESTER-PV.html`** —— 单文件、离线、无需服务器。
 - 或开发模式：`npm install && npm run build && npm run serve` → http://localhost:5173
 
+
+
+## 画面
+
+| | |
+|---|---|
+| ![01 ARRIVAL](docs/shots/01-arrival.png) | ![02 THE TOWER](docs/shots/02-tower.png) |
+| ![03 THE DECK](docs/shots/03-deck.png) | ![05 THE ARM](docs/shots/05-arm.png) |
+| ![06 HARVEST](docs/shots/06-harvest.png) | ![contact sheet](docs/shots/contact-sheet.png) |
+
+细节：井内检修栈道 ![well](docs/shots/detail-well.png) · 贴花层 ![decals](docs/shots/detail-decals.png)
+
 ## 操作
 
 | 键 | 作用 |
