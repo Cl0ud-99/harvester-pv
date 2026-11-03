@@ -22,11 +22,21 @@ const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
  *  renderer / scene
  * ------------------------------------------------------------------ */
 const canvas = document.getElementById('gl');
+
+// Internal render cap: 4K/5K displays run at 3200×1800 and upscale.
+// This is static, so there is no runtime resolution oscillation or resize hitch.
+const MAX_DRAW_PIXELS = 3200 * 1800;
+function cappedPixelRatio() {
+  const raw = Math.min(window.devicePixelRatio || 1, 1.6);
+  const wanted = window.innerWidth * window.innerHeight * raw * raw;
+  return wanted > MAX_DRAW_PIXELS ? raw * Math.sqrt(MAX_DRAW_PIXELS / wanted) : raw;
+}
+
 const renderer = new THREE.WebGLRenderer({
   canvas, antialias: false, powerPreference: 'high-performance',
   stencil: false, alpha: false, preserveDrawingBuffer: true,
 });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.6));
+renderer.setPixelRatio(cappedPixelRatio());
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -505,13 +515,24 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
+function syncRenderSize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const pr = cappedPixelRatio();
+  renderer.setPixelRatio(pr);
+  renderer.setSize(w, h);
+  if (post) {
+    post.composer.setPixelRatio(pr);
+    post.setSize(w, h);
+    post.taa?.reset();
+  }
+  reflection?.setSize(w, h);
+}
+
 window.addEventListener('resize', () => {
   const w = window.innerWidth, h = window.innerHeight;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
-  post?.setSize(w, h);
-  reflection?.setSize(w, h);
+  syncRenderSize();
 });
 
 app.applyQuality = () => {
@@ -522,10 +543,7 @@ app.applyQuality = () => {
     app.deckReflection.reflection.enabled = lv !== 'low';
     app.deckReflection.uniforms.uReflectionStrength.value = lv === 'low' ? 0 : 0.385;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lv === 'low' ? 1 : 1.6));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  post?.setSize(window.innerWidth, window.innerHeight);
-  reflection?.setSize(window.innerWidth, window.innerHeight);
+  syncRenderSize();
 };
 
 boot().then(() => frame()).catch((e) => {

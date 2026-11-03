@@ -11,7 +11,7 @@ The scene runs as a six-shot cinematic with a time-of-day slider, plus free expl
 walk and free-fly modes.
 
 **Scope** — 220 m tower, 184 m span, 95 m saucer station, a 48 m open lava shaft, 2.6 km of terrain.
-**Status** — v0.0.9, playable vertical slice. Modelling detail and atmosphere work continue.
+**Status** — v0.0.10, playable vertical slice. Modelling detail and atmosphere work continue.
 **Not** — a game, a plugin, or a pre-rendered film. One HTML file that opens by double-click.
 
 Built with Three.js and hand-written shaders. No external assets: every texture, tree, rock and decal is generated procedurally at load.
@@ -79,7 +79,7 @@ Details: [well catwalks](docs/shots/detail-well.png) · [decals](docs/shots/deta
 4. **Open-ended cylinders are single-sided.** They vanish from inside; anything seen from both sides needs real thickness.
 5. **Shadows need a frustum that covers the subject** — a 220 m tower with a ±190 m shadow camera leaves the top unshadowed.
 6. **Metalness is not decoration.** A `metalness: 0.9` surface with nothing to reflect renders black. Backlit steel needs albedo and lower metalness, not more lights.
-7. **Volumetric light** is a half-res, 16-step screen-space raymarch inserted before Bloom. Each step takes one camera-depth sample and one sun-shadow sample, so the tower and forest actually cut the shafts. It costs two extra draw calls; the full stack runs at ~200–260 fps at 1600×900 on the dev machine, with the sun shadow map rebuilt only on cuts.
+7. **Volumetric light** is a half-res, 16-step screen-space raymarch inserted before Bloom. Each step takes one camera-depth sample and one sun-shadow sample, so the tower and forest actually cut the shafts. It costs two extra draw calls; the full stack runs at ~200–260 fps at 1600×900 on the dev machine, with the sun shadow map rebuilt only on cuts. Internal rendering is capped at 3200×1800 pixels (4K/5K canvases upscale), measured at ~77 fps at 4K and ~92 fps at 5K.
 8. **TAA runs before volumetrics** and writes its resolve back into the composer readBuffer without swapping, so the scene depth attachment survives for the raymarch. Halton jitter is applied after the shot camera's projection update; history resets on every hard cut.
 9. **Deck reflection** is a real planar mirror pass: the y=0 plane mirrors the camera with oblique near-plane clipping, renders only layer-2 tower/station/sky geometry at half resolution, and the deck material samples it with a Fresnel-weighted projection. The deck mesh stays off that layer so it never samples its own target.
 10. **Dry soil ring** has its own ochre/gravel/crack texture and an `aDry` vertex mask; the ground shader mixes it over the moss map outside ~265 m and forces roughness toward 0.95 so it reads dry, not wet. The moss belt itself was expanded to a 373 m outer fade, roughly doubling the visible green area around the tower twice.
