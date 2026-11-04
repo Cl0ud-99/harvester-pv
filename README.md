@@ -17,6 +17,12 @@
 | --- | --- | --- |
 | ![Morning](docs/shots/morning.jpg) | ![Noon](docs/shots/noon.jpg) | ![Evening](docs/shots/evening.jpg) |
 
+## More Angles
+
+| Arrival | Tower | Arm |
+| --- | --- | --- |
+| ![Arrival](docs/shots/angle-arrival.jpg) | ![Tower](docs/shots/angle-tower.jpg) | ![Arm](docs/shots/angle-arm.jpg) |
+
 ## About
 
 A single-scene, real-time environment study of the Hammond Robotics **Harvester** from Apex Legends'
@@ -28,7 +34,7 @@ The scene runs as a six-shot cinematic with a time-of-day slider, plus free expl
 walk and free-fly modes.
 
 **Scope** — 220 m tower, 184 m span, 95 m saucer station, a 48 m open lava shaft, 2.6 km of terrain.
-**Status** — v0.0.13, playable vertical slice. Updated 2026-11-05.
+**Status** — v0.0.14, playable vertical slice. Updated 2026-11-05.
 **Not** — a game, a plugin, or a pre-rendered film. One HTML file that opens by double-click.
 
 Built with Three.js and hand-written shaders. No external assets: every texture, tree, rock and decal is generated procedurally at load.
