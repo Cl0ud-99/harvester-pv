@@ -46,7 +46,7 @@ The scene runs as a six-shot cinematic with a time-of-day slider, plus free expl
 walk and free-fly modes.
 
 **Scope** — 220 m tower, 184 m span, 95 m saucer station, a 48 m open lava shaft, 2.6 km of terrain.
-**Status** — v0.0.15, playable vertical slice. Updated 2026-11-05.
+**Status** — v0.0.16, playable vertical slice. Updated 2026-11-05.
 **Not** — a game, a plugin, or a pre-rendered film. One HTML file that opens by double-click.
 
 Built with Three.js and hand-written shaders. No external assets: every texture, tree, rock and decal is generated procedurally at load.

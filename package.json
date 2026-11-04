@@ -1,6 +1,6 @@
 {
   "name": "apex-scene",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Apex-style Harvester megastructure — realtime scene",
   "main": "index.js",
   "scripts": {
