@@ -1,5 +1,14 @@
 # HARVESTER — Apex-style Megastructure
 
+**LIVE:** [cl0ud-99.github.io/harvester-pv/?deck=stone3](https://cl0ud-99.github.io/harvester-pv/?deck=stone3)
+
+## Latest
+
+- Second-level C deck with chamfer-following end treatment and hidden outer shell
+- Black base plate with layered stone field and continuous white / blue / yellow rim
+- Dedicated high-contrast mountain rock texture with anti-tiling and triplanar steep-slope blending
+- Native 1K / 2K / 4K cap, six-shot cinema, free orbit, walk and fly modes
+
 ## About
 
 A single-scene, real-time environment study of the Hammond Robotics **Harvester** from Apex Legends'

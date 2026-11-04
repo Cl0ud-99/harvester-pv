@@ -375,6 +375,71 @@ export function deckMetalSet(o = {}) {
 }
 
 /* ------------------------------------------------------------------ *
+ *  ROUGH STONE DECK — coarse, non-directional granite/limestone slab
+ * ------------------------------------------------------------------ */
+export function stoneDeckSet(o = {}) {
+  const key = 'stoneDeck' + (o.seed || 0);
+  if (cache.has(key)) return cache.get(key);
+  const size = 1024;
+  const rnd = mulberry32(173);
+  const cv = canvas(size);
+  const g = cv.getContext('2d');
+  const img = g.createImageData(size, size);
+  const rc = canvas(size);
+  const r2 = rc.getContext('2d');
+  const rimg = r2.createImageData(size, size);
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = x / size, v = y / size;
+      const macro = fbm2(u * 3.2 + 2.1, v * 3.2 - 1.7, 4) * 0.5 + 0.5;
+      const grain = fbm2(u * 18.0 + 7.0, v * 18.0 - 2.0, 3) * 0.5 + 0.5;
+      const micro = fbm2(u * 92.0 - 4.0, v * 92.0 + 9.0, 2) * 0.5 + 0.5;
+      const pit = Math.pow(Math.abs(fbm2(u * 14.0 + 3.0, v * 14.0 + 8.0, 3)), 3.0);
+      const base = 0.47 + macro * 0.17 + grain * 0.075 + micro * 0.035 - pit * 0.10;
+      const warm = 0.5 + fbm2(u * 1.8 + 5.0, v * 1.8 - 2.0, 3) * 0.5;
+      const i = (y * size + x) * 4;
+      img.data[i] = clamp(base * lerp(1.01, 1.08, warm), 0, 1) * 255;
+      img.data[i + 1] = clamp(base * lerp(0.985, 1.0, warm), 0, 1) * 255;
+      img.data[i + 2] = clamp(base * lerp(0.92, 0.88, warm), 0, 1) * 255;
+      img.data[i + 3] = 255;
+      const rough = clamp(0.78 + (1 - macro) * 0.16 + (1 - micro) * 0.05, 0, 1);
+      rimg.data[i] = rimg.data[i + 1] = rimg.data[i + 2] = rough * 255;
+      rimg.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  r2.putImageData(rimg, 0, 0);
+
+  // quartz-like aggregate and dark pores
+  for (let i = 0; i < 1500; i++) {
+    const x = rnd() * size, y = rnd() * size, rr = 0.6 + rnd() * 2.4;
+    const light = rnd() > 0.42;
+    g.fillStyle = light ? `rgba(224,218,201,${0.12 + rnd() * 0.18})` : `rgba(46,44,40,${0.10 + rnd() * 0.16})`;
+    g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fill();
+  }
+  // coarse cracks / bedding lines
+  for (let i = 0; i < 22; i++) {
+    let x = rnd() * size, y = rnd() * size;
+    g.strokeStyle = `rgba(30,28,25,${0.20 + rnd() * 0.25})`;
+    g.lineWidth = 0.7 + rnd() * 1.8;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 24; k++) { x += (rnd() - 0.5) * 26; y += rnd() * 19 - 5; g.lineTo(x, y); }
+    g.stroke();
+  }
+
+  const hc = canvas(size);
+  hc.getContext('2d').drawImage(cv, 0, 0);
+  const out = {
+    map: tex(cv, { srgb: true, repeat: o.repeat || [1.6, 1.6], aniso: 16 }),
+    normalMap: tex(normalFromCanvas(hc, o.normalStrength || 3.6), { srgb: false, repeat: o.repeat || [1.6, 1.6], aniso: 16 }),
+    roughnessMap: tex(rc, { srgb: false, repeat: o.repeat || [1.6, 1.6], aniso: 16 }),
+  };
+  cache.set(key, out);
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
  *  DRY SOIL — the ring outside the moss belt: ochre dirt, gravel, cracks
  * ------------------------------------------------------------------ */
 export function dryGroundSet(o = {}) {
@@ -495,6 +560,70 @@ export function rockSet(o = {}) {
   const out = {
     map: tex(cv, { srgb: true, repeat: o.repeat || [2, 2] }),
     normalMap: tex(normalFromCanvas(hc, o.normalStrength || 3.2), { srgb: false, repeat: o.repeat || [2, 2] }),
+  };
+  cache.set(key, out);
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ *  TERRAIN ROCK — high-contrast layered mountain rock
+ * ------------------------------------------------------------------ */
+export function terrainRockSet(o = {}) {
+  const key = 'terrainRock' + (o.seed || 0);
+  if (cache.has(key)) return cache.get(key);
+  const size = 1024;
+  const rnd = mulberry32(131);
+  const cv = canvas(size);
+  const g = cv.getContext('2d');
+  const img = g.createImageData(size, size);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = x / size, v = y / size;
+      const n = fbm2(u * 9 + 5, v * 9 - 3, 5) * 0.5 + 0.5;
+      const fine = noise2(u * 74 + 2, v * 74 - 4) * 0.5 + 0.5;
+      const strata = Math.sin(v * 44 + fbm2(u * 3, v * 9, 3) * 5.2) * 0.5 + 0.5;
+      const crack = Math.pow(Math.abs(fbm2(u * 7 + 8, v * 7 - 1, 4)), 0.42);
+      let base = 0.10 + n * 0.32 + strata * 0.25 + fine * 0.09;
+      base *= 0.50 + crack * 0.50;
+      const warm = clamp(0.5 + fbm2(u * 2.4, v * 2.4, 3), 0, 1);
+      const r = clamp(base * lerp(1.02, 1.18, warm), 0, 1) * 255;
+      const gg = clamp(base * lerp(0.96, 1.00, warm), 0, 1) * 255;
+      const b = clamp(base * lerp(0.90, 0.82, warm), 0, 1) * 255;
+      const i = (y * size + x) * 4;
+      img.data[i] = r; img.data[i + 1] = gg; img.data[i + 2] = b; img.data[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+
+  // sediment partings
+  for (let i = 0; i < 70; i++) {
+    const y = rnd() * size;
+    g.strokeStyle = 'rgba(22,18,15,' + (0.10 + rnd() * 0.22) + ')';
+    g.lineWidth = 0.7 + rnd() * 2.2;
+    g.beginPath();
+    let yy = y;
+    g.moveTo(0, yy);
+    for (let x = 0; x <= size; x += 64) {
+      yy += (rnd() - 0.5) * 18;
+      g.lineTo(x, yy);
+    }
+    g.stroke();
+  }
+  // deep cracks
+  for (let i = 0; i < 46; i++) {
+    let x = rnd() * size, y = rnd() * size;
+    g.strokeStyle = 'rgba(15,12,10,' + (0.35 + rnd() * 0.35) + ')';
+    g.lineWidth = 0.8 + rnd() * 2.0;
+    g.beginPath(); g.moveTo(x, y);
+    for (let k = 0; k < 30; k++) { x += (rnd() - 0.5) * 20; y += rnd() * 22 - 4; g.lineTo(x, y); }
+    g.stroke();
+  }
+
+  const hc = canvas(size);
+  hc.getContext('2d').drawImage(cv, 0, 0);
+  const out = {
+    map: tex(cv, { srgb: true, repeat: [1, 1], aniso: 16, wrap: THREE.MirroredRepeatWrapping }),
+    normalMap: tex(normalFromCanvas(hc, 4.2), { srgb: false, repeat: [1, 1], aniso: 16, wrap: THREE.MirroredRepeatWrapping }),
   };
   cache.set(key, out);
   return out;

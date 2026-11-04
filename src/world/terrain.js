@@ -80,6 +80,7 @@ export function createTerrain(M, scene) {
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
   const dryWeights = new Float32Array(pos.count);
+  const rockWeights = new Float32Array(pos.count);
   const cMoss = new THREE.Color(0x6d7c34);
   const cMossDry = new THREE.Color(0x93903f);
   const cDirt = new THREE.Color(0x5b4a36);
@@ -113,6 +114,7 @@ tmp.multiplyScalar(1 - (1 - mossMask) * 0.16);
     tmp.multiplyScalar(0.84 + macro * 0.34);
     tmp.lerp(cDirt, clamp((0.52 - n) * 1.4, 0, 0.5));
     const rocky = clamp(smoothstep(0.28, 0.70, slope) + smoothstep(24, 100, h) * 0.7, 0, 1);
+    rockWeights[i] = rocky;
     tmp.lerp(cRock, rocky);
     tmp.lerp(cDark, clamp(smoothstep(90, 250, h) * 0.6, 0, 1));
     tmp.lerp(cAsh, clamp(smoothstep(250, 480, h) * 0.45, 0, 1));
@@ -126,37 +128,83 @@ tmp.multiplyScalar(1 - (1 - mossMask) * 0.16);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.setAttribute('aDry', new THREE.BufferAttribute(dryWeights, 1));
+  geo.setAttribute('aRock', new THREE.BufferAttribute(rockWeights, 1));
   geo.computeVertexNormals();
 
   const groundMat = M.ground.clone();
   groundMat.vertexColors = true;
-  if (M.groundDry && M.groundDry.map) {
-    const dryMap = M.groundDry.map;
-    groundMat.onBeforeCompile = (shader) => {
+  for (const t of [groundMat.map, groundMat.normalMap, groundMat.roughnessMap]) {
+    if (t) t.needsUpdate = true;
+  }
+  groundMat.needsUpdate = true;
+  const dryMap = M.groundDry && M.groundDry.map;
+  const rockMap = M.terrainRock.map;
+  groundMat.onBeforeCompile = (shader) => {
+    shader.uniforms.uRockMap = { value: rockMap };
+    let vs = 'attribute float aRock;\nvarying float vRock;\nvarying vec3 vWorldPos;\nvarying vec3 vWNormal;\n';
+    let fs = 'uniform sampler2D uRockMap;\nvarying float vRock;\nvarying vec3 vWorldPos;\nvarying vec3 vWNormal;\n';
+    if (dryMap) {
       shader.uniforms.uDryMap = { value: dryMap };
-      shader.vertexShader = 'attribute float aDry;\nvarying float vDry;\n' + shader.vertexShader;
-      shader.vertexShader = shader.vertexShader.replace(
-        '#include <begin_vertex>',
-        '#include <begin_vertex>\n  vDry = aDry;',
-      );
-      shader.fragmentShader = 'uniform sampler2D uDryMap;\nvarying float vDry;\n' + shader.fragmentShader;
-      shader.fragmentShader = shader.fragmentShader.replace(
-        '#include <map_fragment>',
-        [
-          '#include <map_fragment>',
-          '#ifdef USE_MAP',
-          '  vec4 dryTexel = texture2D(uDryMap, vMapUv);',
-          '  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * dryTexel.rgb * 1.08, clamp(vDry, 0.0, 1.0) * 0.92);',
-          '#endif',
-        ].join('\n'),
-      );
+      vs += 'attribute float aDry;\nvarying float vDry;\n';
+      fs += 'uniform sampler2D uDryMap;\nvarying float vDry;\n';
+    }
+    shader.vertexShader = vs + shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\n  vRock = aRock;\n  vWorldPos = (modelMatrix * vec4(transformed, 1.0)).xyz;\n  vWNormal = normalize(mat3(modelMatrix) * normal);\n' + (dryMap ? '  vDry = aDry;\n' : ''),
+    );
+
+    const colorLines = [
+      '#include <color_fragment>',
+      '#ifdef USE_MAP',
+      '  vec3 wn = normalize(vWNormal);',
+      '  vec3 bw = pow(abs(wn), vec3(4.0));',
+      '  bw /= max(dot(bw, vec3(1.0)), 1e-4);',
+      '  vec3 tA = texture2D(uRockMap, vWorldPos.zy * 0.014).rgb * bw.x;',
+      '  tA += texture2D(uRockMap, vWorldPos.xz * 0.014).rgb * bw.y;',
+      '  tA += texture2D(uRockMap, vWorldPos.xy * 0.014).rgb * bw.z;',
+      '  vec3 tB = texture2D(uRockMap, vWorldPos.zy * 0.042).rgb * bw.x;',
+      '  tB += texture2D(uRockMap, vWorldPos.xz * 0.042).rgb * bw.y;',
+      '  tB += texture2D(uRockMap, vWorldPos.xy * 0.042).rgb * bw.z;',
+      '  vec3 triRock = mix(tA, tB, 0.45);',
+      '  mat2 R1 = mat2(0.8253, -0.5646, 0.5646, 0.8253);',
+      '  mat2 R2 = mat2(-0.4161, -0.9093, 0.9093, -0.4161);',
+      '  vec3 uA = texture2D(uRockMap, R1 * vMapUv * 0.28 + vec2(0.13, 0.71)).rgb;',
+      '  vec3 uB = texture2D(uRockMap, R2 * vMapUv * 0.19 + vec2(0.57, 0.23)).rgb;',
+      '  vec3 uC = texture2D(uRockMap, vMapUv * 0.44 + vec2(0.39, 0.81)).rgb;',
+      '  float macro = 0.5 + 0.5 * sin(vMapUv.x * 0.09 + vMapUv.y * 0.07 + sin(vMapUv.x * 0.03) * 2.0);',
+      '  vec3 uvRock = mix(mix(uA, uB, 0.34 + 0.26 * macro), uC, 0.26);',
+      '  float steep = smoothstep(0.25, 0.75, 1.0 - abs(wn.y));',
+      '  vec3 rockTexel = mix(uvRock, triRock, steep * 0.78);',
+    ];
+    if (dryMap) {
+      colorLines.push('  vec4 dryTexel = texture2D(uDryMap, vMapUv);');
+      colorLines.push('  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * dryTexel.rgb * 1.08, clamp(vDry, 0.0, 1.0) * 0.92);');
+    }
+    colorLines.push('  vec3 rockTint = mix(diffuseColor.rgb * 1.08, rockTexel.rgb, 0.76);');
+    colorLines.push('  diffuseColor.rgb = mix(diffuseColor.rgb, rockTint, clamp(max(vRock, 0.35), 0.0, 1.0));');
+    colorLines.push('#endif');
+    shader.fragmentShader = fs + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', colorLines.join('\n'));
+
+    if (dryMap) {
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <roughnessmap_fragment>',
         '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.95, clamp(vDry, 0.0, 1.0));',
       );
-    };
-    groundMat.needsUpdate = true;
-  }
+    }
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <normal_fragment_maps>',
+      [
+        '#include <normal_fragment_maps>',
+        '#ifdef USE_MAP',
+        '  float rockBump = dot(rockTexel, vec3(0.3333333));',
+        '  normal = normalize(normal + vec3(dFdx(rockBump), dFdy(rockBump), 0.0) * 2.5);',
+        '#endif',
+      ].join('\n'),
+    );
+  };
+  groundMat.needsUpdate = true;
   const mesh = new THREE.Mesh(geo, groundMat);
   mesh.receiveShadow = true;
   mesh.castShadow = false;

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { panelSet, groundSet, dryGroundSet, rockSet, deckSet, deckMetalSet, hazardTex, hLogoTex, textTex } from './textures.js';
+import { panelSet, groundSet, dryGroundSet, rockSet, stoneDeckSet, deckSet, deckMetalSet, terrainRockSet, hazardTex, hLogoTex, textTex } from './textures.js';
 
 export const PAL = {
   white: '#dcd6c8',
@@ -27,6 +27,7 @@ export function createMaterials() {
   const ground = groundSet({ repeat: [52, 52], size: 2048 });
   const dryGround = dryGroundSet({ repeat: [52, 52], size: 1024 });
   const rock = rockSet({ repeat: [3, 3] });
+  const terrainRock = terrainRockSet();
 
   const M = {};
 
@@ -81,6 +82,46 @@ export function createMaterials() {
     clearcoat: 0.15, clearcoatRoughness: 0.5, flatShading: true, side: THREE.DoubleSide,
   });
 
+  M.deckUpperBlack = M.deckUpper.clone();
+  M.deckUpperBlack.color.setHex(0x242a30);
+  M.deckUpperBlack.metalness = 0.34;
+  M.deckUpperBlack.roughness = 0.62;
+  M.deckUpperBlack.needsUpdate = true;
+
+  const stoneDeck = stoneDeckSet({ repeat: [1.6, 1.6], normalStrength: 3.8 });
+  M.deckUpperStone = new THREE.MeshStandardMaterial({
+    map: stoneDeck.map, normalMap: stoneDeck.normalMap, roughnessMap: stoneDeck.roughnessMap,
+    normalScale: new THREE.Vector2(2.05, 2.05),
+    color: 0x7b858b, metalness: 0.0, roughness: 0.96,
+    envMapIntensity: 0.02, flatShading: true, side: THREE.DoubleSide,
+  });
+  M.deckUpperStoneLight = new THREE.MeshStandardMaterial({
+    map: stoneDeck.map, normalMap: stoneDeck.normalMap, roughnessMap: stoneDeck.roughnessMap,
+    normalScale: new THREE.Vector2(2.1, 2.1),
+    color: 0x98a2a7, metalness: 0.0, roughness: 0.95,
+    envMapIntensity: 0.02, flatShading: true, side: THREE.DoubleSide,
+  });
+  M.deckUpperStoneDark = new THREE.MeshStandardMaterial({
+    map: stoneDeck.map, normalMap: stoneDeck.normalMap, roughnessMap: stoneDeck.roughnessMap,
+    normalScale: new THREE.Vector2(2.05, 2.05),
+    color: 0x59646b, metalness: 0.0, roughness: 0.97,
+    envMapIntensity: 0.01, flatShading: true, side: THREE.DoubleSide,
+  });
+
+  M.deckEdgeDark = M.steel.clone();
+  M.deckEdgeDark.side = THREE.DoubleSide;
+  M.deckEdgeDark.flatShading = true;
+  M.deckEdgeDark.needsUpdate = true;
+  M.deckEndArmor = M.armourDirty.clone();
+  M.deckEndArmor.side = THREE.DoubleSide;
+  M.deckEndArmor.needsUpdate = true;
+  M.deckEndWhite = M.armour.clone();
+  M.deckEndWhite.side = THREE.DoubleSide;
+  M.deckEndWhite.needsUpdate = true;
+  M.deckEndBlue = M.armourBlue.clone();
+  M.deckEndBlue.side = THREE.DoubleSide;
+  M.deckEndBlue.needsUpdate = true;
+
   M.deckUnder = new THREE.MeshStandardMaterial({
     map: deckMetalFine.map, normalMap: deckMetalFine.normalMap, roughnessMap: deckMetalFine.roughnessMap,
     normalScale: new THREE.Vector2(0.6, 0.6),
@@ -114,6 +155,7 @@ export function createMaterials() {
     color: 0x6f675e, metalness: 0.03, roughness: 0.93, envMapIntensity: 0.20, flatShading: false,
   });
 
+  M.terrainRock = terrainRock;
   M.rockVC = new THREE.MeshStandardMaterial({
     map: rock.map, normalMap: rock.normalMap, normalScale: new THREE.Vector2(2.3, 2.3),
     color: 0xffffff, vertexColors: true, metalness: 0.03, roughness: 0.93, envMapIntensity: 0.20,

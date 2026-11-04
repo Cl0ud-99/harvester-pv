@@ -256,8 +256,21 @@ app.setRoam = function (m) {
   app.mode = m;
 };
 
-canvas.addEventListener('click', () => {
-  if (roam !== 'orbit' && !pointerLocked) canvas.requestPointerLock?.();
+// Pointer lock is a toggle: first press locks the view, second press releases
+// it so the cursor returns. Using pointerdown avoids the mousedown -> click
+// sequence immediately re-locking after exit.
+canvas.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0 || roam === 'orbit') return;
+  if (document.pointerLockElement === canvas) {
+    document.exitPointerLock?.();
+  } else {
+    const req = canvas.requestPointerLock?.();
+    req?.catch?.(() => {});
+  }
+});
+
+document.addEventListener('pointerlockerror', () => {
+  document.body.classList.remove('locked');
 });
 
 document.addEventListener('pointerlockchange', () => {
