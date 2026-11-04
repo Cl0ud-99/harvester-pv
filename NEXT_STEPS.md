@@ -1,4 +1,4 @@
-# NEXT STEPS — v0.0.10 handoff
+# NEXT STEPS — v0.0.11 handoff
 
 State: `main` is green, build works, single-file `HARVESTER-PV.html` is current.
 **2026-11-04 — volumetric light + TAA + deck planar reflection + dry soil ring landed.**
@@ -27,7 +27,8 @@ Volumetric toggle: `__app.post.volumetric.enabled = false`; TAA toggle: `__app.p
 
 8. **Crown layered armour** — three overlapping octagonal plate stacks (y≈164–207) with recessed separation and blue trim rings, sitting outside the original crown drum. Code in `harvester.js`.
 9. **v0.0.9 performance pass** — sun shadow map 4096→2048 and now refreshes only on cuts/explicit time scrubs; unused basalt-butte generator/dead fascia removed; 7 underdeck point lights removed after testing showed they did not reach the underside; per-frame `Vector3`/`Color` allocations in the time-of-day and sun-projection paths removed. 1600×900 headless measurements: 204–439 FPS across shots (well above the 60 FPS target), no frame-time spikes from shadow-map rebuilds.
-10. **Static resolution cap** — internal drawing buffer is capped at 3200×1800; 4K/5K canvases upscale from that fixed buffer instead of changing resolution at runtime. Measured 4K ≈77 FPS / 5K ≈92 FPS headless, with no resize hitches or auto-quality oscillation.
+10. **Native 1K/2K/4K** — internal drawing buffer follows the canvas up through 3840×2160; only displays above 4K are capped at a 4K buffer. No runtime resolution changes or auto-quality oscillation.
+11. **Quality UI** — persistent `QUALITY · HQ` button in the bottom controls cycles LQ / MQ / HQ (G shortcut); labels update in place and call `app.applyQuality()`.
 
 ## Do next, in order
 

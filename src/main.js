@@ -23,9 +23,9 @@ const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
  * ------------------------------------------------------------------ */
 const canvas = document.getElementById('gl');
 
-// Internal render cap: 4K/5K displays run at 3200×1800 and upscale.
-// This is static, so there is no runtime resolution oscillation or resize hitch.
-const MAX_DRAW_PIXELS = 3200 * 1800;
+// 1K/2K/4K render native; only displays above 4K are capped at a 4K buffer.
+// Static so there is no runtime resolution oscillation or resize hitch.
+const MAX_DRAW_PIXELS = 3840 * 2160;
 function cappedPixelRatio() {
   const raw = Math.min(window.devicePixelRatio || 1, 1.6);
   const wanted = window.innerWidth * window.innerHeight * raw * raw;

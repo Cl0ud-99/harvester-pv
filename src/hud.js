@@ -81,12 +81,16 @@ export function createHUD(app, cinema) {
 
   el.btnClean.onclick = () => toggleClean();
   el.btnSound.onclick = () => toggleSound();
-  el.btnQuality.onclick = () => {
+  function cycleQuality() {
     app.qualityLevel = (app.qualityLevel + 1) % 3;
-    el.btnQuality.textContent = ['LQ', 'MQ', 'HQ'][app.qualityLevel];
+    const label = ['LQ', 'MQ', 'HQ'][app.qualityLevel];
+    el.btnQuality.textContent = 'QUALITY · ' + label;
+    el.btnQuality.classList.toggle('on', app.qualityLevel === 2);
     app.applyQuality();
-  };
-  el.btnQuality.textContent = 'HQ';
+  }
+  el.btnQuality.onclick = cycleQuality;
+  el.btnQuality.textContent = 'QUALITY · HQ';
+  el.btnQuality.classList.add('on');
 
   el.replay.onclick = () => { el.end.classList.remove('show'); cinema.start(0); setPlaying(true); };
   el.free.onclick = () => { el.end.classList.remove('show'); cinema.explore(); };
@@ -120,6 +124,7 @@ export function createHUD(app, cinema) {
       case 'KeyH': toggleClean(); break;
       case 'Escape': if (document.body.classList.contains('hidehud')) toggleClean(); break;
       case 'KeyM': toggleSound(); break;
+      case 'KeyG': cycleQuality(); break;
       case 'ArrowRight': cinema.start(Math.min(cinema.state.shot + 1, cinema.SHOTS.length - 1)); setPlaying(true); break;
       case 'ArrowLeft': cinema.start(Math.max(cinema.state.shot - 1, 0)); setPlaying(true); break;
       case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6': {
